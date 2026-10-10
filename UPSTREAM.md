@@ -37,6 +37,34 @@ Use this entry format:
 
 ## Recorded adaptations
 
+### 2026-10-10 — Decode narrow integer GGUF metadata arrays
+
+- Source: [gufo-org/gufo@3fac1bb51c97ef3606bf0bc662bf778344414cb4](https://github.com/gufo-org/gufo/commit/3fac1bb51c97ef3606bf0bc662bf778344414cb4)
+  ([PR #532](https://github.com/gufo-org/gufo/pull/532), reviewed head
+  [4c4df642b00eae60e276b2d58ce2836c3dc48373](https://github.com/gufo-org/gufo/commit/4c4df642b00eae60e276b2d58ce2836c3dc48373)).
+- Local: commit introducing this entry; based on
+  `e2454792a37934bf19bf2d84ae085553ee8f73e4`.
+- Adaptation: import the parser and regression fixture unchanged; retain the
+  fork's Windows temporary-path and mapped-file truncation test adaptations.
+  Widen unsigned/signed 8- and 16-bit arrays to the existing 64-bit vectors,
+  preserving signs and rejecting scalar access to arrays. Existing bounds and
+  the 128 MiB metadata budget remain unchanged. No prerequisites or omissions.
+- Areas: `src/core/gguf_reader.cpp`, `tests/core/gguf_reader_test.cpp`.
+- Validation: fresh Windows `cpu-test` builds with TheRock 10.0.0 (clang 23,
+  MSVC 14.51) pass `gguf_reader_test`, `gguf_identity_test` and
+  `qwen38_flash_next.config`. The upstream regression fixture fails with
+  `bad variant access` when built against the baseline parser, then passes after
+  restoring the fix. An isolated CPU metadata/configuration probe opens all
+  three local Flash-Next UD-IQ4_XS shards and the Q8_0 MTP sidecar successfully;
+  descriptor counts, selected geometry and RoPE/compression/PLE array values
+  match the baseline. This is metadata loading, not GPU weight upload or inference.
+  Repository formatting (clang-format 21.1.8), documentation and diff whitespace
+  checks pass. Commands and logs are retained under ignored `build/pr532/` in
+  the implementation worktree. GPU model-load smoke, matched-token full logits,
+  perplexity, sanitizers and Linux execution remain unrun. DS4's loader test is
+  HIP-only and was not built in this CPU qualification. No performance claim.
+- Status: retained.
+
 ### 2026-10-09 — Tool-result image parser compatibility
 
 - Source: [gufo-org/gufo@a5df2744dbd97c8ff60da25a1ab9daf90fffc639](https://github.com/gufo-org/gufo/commit/a5df2744dbd97c8ff60da25a1ab9daf90fffc639)
