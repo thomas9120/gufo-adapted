@@ -37,6 +37,28 @@ Use this entry format:
 
 ## Recorded adaptations
 
+### 2026-10-19 — IQ routed-expert F16 prefill candidate
+
+- Source: [johandevlabs/gufo-iq4_xs@bd13bae28c63b0b8579a4e2672e6d0a52804e582](https://github.com/johandevlabs/gufo-iq4_xs/commit/bd13bae28c63b0b8579a4e2672e6d0a52804e582),
+  adapted.
+- Local: commit introducing this entry.
+- Adaptation: add IQ3_S/IQ4_XS gate/up and IQ4_NL down to the existing
+  compact F16 routed kernels. Decode codes once in LDS staging; retain the
+  fork's Q4/Q5 cache selection, tile maps and decode dispatch. The initial
+  candidate keeps IQ gate/up separate. No loader, dense-weight conversion,
+  native Q6 head or batched-decode changes are imported.
+- Areas: Flash-Next expert dispatch, routed F16 kernels and device codebook;
+  independent F64 operator checks with IQ and short/ragged batches.
+- Validation: Windows GPU build and expanded `routed_wmma_ops` pass (83.26 s),
+  including 24 IQ cases under unchanged limits. All 23 compiled routed
+  variants have zero scratch/register spills; all 512 device IQ3_S grid
+  entries match the independent CPU decoder. Formatting, documentation,
+  dependency checks and ten resource-parser tests pass. Full-model checks
+  remain in progress; Linux is unrun.
+  [Criteria and evidence](docs/plans/iq-experts-prefill.md).
+- Status: experimental candidate; intentional IQ prefill arithmetic change
+  is not yet qualified or promoted.
+
 ### 2026-10-17 — Keep the cached conversation when tool choice changes
 
 - Source: [gufo-org/gufo@23d970d0ca0ef694dafec64131269f9c24590940](https://github.com/gufo-org/gufo/commit/23d970d0ca0ef694dafec64131269f9c24590940)
