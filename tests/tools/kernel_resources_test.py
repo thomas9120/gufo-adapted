@@ -132,7 +132,7 @@ class KernelResourcesTest(unittest.TestCase):
         self.assertEqual(RESOURCES.inflate_ccob(header + zlib.compress(payload), None), payload)
 
     def test_complete_zero_scratch_contract(self):
-        self.assertEqual(len(RESOURCES.required_variants()), 66)
+        self.assertEqual(len(RESOURCES.required_variants()), 70)
         self.assertEqual(RESOURCES.check(clean_kernels()), [])
         # The host argument ABI is outside the required template prefix.
         linux = {(arch, name[:-3] + "mmm"): resource

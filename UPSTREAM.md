@@ -37,11 +37,30 @@ Use this entry format:
 
 ## Recorded adaptations
 
+### 2026-10-19 — Paired IQ routed gate/up candidate
+
+- Source: [johandevlabs/gufo-iq4_xs@88cd08069db1d6058f3a95816279c185ae765eb4](https://github.com/johandevlabs/gufo-iq4_xs/commit/88cd08069db1d6058f3a95816279c185ae765eb4),
+  adapted on the separate IQ F16 support below.
+- Local: commit introducing this entry.
+- Adaptation: instantiate paired IQ3_S/IQ4_XS gate/up using the fork's current
+  64/128-token maps and fused SwiGLU epilogue. Preserve Q4/Q5 cache handling,
+  the down path and decode dispatch. No other source-branch changes imported.
+- Areas: Flash-Next routed F16 launchers/dispatch, paired operator coverage
+  and the compiled-resource coverage contract.
+- Validation: expanded routed operators pass (83.38 s); paired IQ output
+  matches separate F16 output under the unchanged signed-zero convention,
+  with byte-exact replay. All 27 routed variants have zero scratch/register
+  spills; pre-existing variants retain their resource counts. Ten resource
+  fixtures pass. Full-model checks remain in progress; Linux is deferred.
+  [Evidence and remaining gates](docs/plans/iq-experts-prefill.md).
+- Status: experimental candidate; numerical quality and full-model performance
+  are not yet qualified.
+
 ### 2026-10-19 — IQ routed-expert F16 prefill candidate
 
 - Source: [johandevlabs/gufo-iq4_xs@bd13bae28c63b0b8579a4e2672e6d0a52804e582](https://github.com/johandevlabs/gufo-iq4_xs/commit/bd13bae28c63b0b8579a4e2672e6d0a52804e582),
   adapted.
-- Local: commit introducing this entry.
+- Local: `42274ba3`.
 - Adaptation: add IQ3_S/IQ4_XS gate/up and IQ4_NL down to the existing
   compact F16 routed kernels. Decode codes once in LDS staging; retain the
   fork's Q4/Q5 cache selection, tile maps and decode dispatch. The initial

@@ -272,7 +272,7 @@ def required_variants() -> list[str]:
     for fmt in (7, 8, 20, 21, 23):
         names.append(FLASH_ROUTED + f"LNS2_10WeightTypeE{fmt}E" +
                      ints((128, 64, 2)) + "Lb0EEEv")
-    for fmt in (12, 13):
+    for fmt in (12, 13, 21, 23):
         for bn in (64, 128):
             names.append(FLASH_ROUTED + f"LNS2_10WeightTypeE{fmt}E" +
                          ints((128, bn, 2)) + "Lb1EEEv")

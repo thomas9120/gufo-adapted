@@ -71,3 +71,18 @@ Raw model identities, captures and qualification records: ignored
   per-row values have five decimal places). These are baseline measurements,
   not candidate quality evidence. Paired kernels and model qualification are
   still pending.
+
+## Stage 2: paired IQ gate/up
+
+- Expanded routed operators pass in 83.38 seconds. IQ3_S/IQ4_XS paired
+  64/128-token tiles match separate F16 projections under the existing
+  signed-zero convention and replay byte-exactly.
+- All 27 routed variants are scratch/spill-free. Resource counts for all
+  23 stage-1 variants are unchanged. The guard requires all four new paired
+  variants, and its ten fixtures pass.
+- Windows remains the priority. The user has WSL available but considers
+  Linux validation low priority; Linux checks are deferred, not passed.
+- Baseline teacher-forced captures complete. The first baseline normal-prefill
+  capture made no progress before its first vocabulary row and was stopped
+  after several minutes. Its incomplete capture is retained. A fresh isolated
+  retry is in progress; no candidate numerical mismatch is inferred from it.

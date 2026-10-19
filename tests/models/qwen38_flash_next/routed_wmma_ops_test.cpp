@@ -402,13 +402,21 @@ Result Run(q::WeightType type, std::size_t n_tokens, std::size_t used,
   }
 
   if (tile_rows == 48 &&
-      (type == q::WeightType::kQ4_K || type == q::WeightType::kQ5_K)) {
+      (type == q::WeightType::kQ4_K || type == q::WeightType::kQ5_K ||
+       type == q::WeightType::kIQ3_S || type == q::WeightType::kIQ4_XS)) {
     // Different gate/up weights, with the up scale small enough that these
     // deliberately large synthetic weights do not overflow the F16 output.
+    // K-quant headers carry two F16 scales, IQ blocks one.
     auto up = w.packed;
-    const std::size_t block_bytes = type == q::WeightType::kQ4_K ? 144 : 176;
+    const std::size_t block_bytes = type == q::WeightType::kQ4_K    ? 144
+                                    : type == q::WeightType::kQ5_K  ? 176
+                                    : type == q::WeightType::kIQ3_S ? 110
+                                                                    : 136;
+    const std::vector<std::size_t> scales =
+        IsIq(type) ? std::vector<std::size_t>{0}
+                   : std::vector<std::size_t>{0, 2};
     for (std::size_t b = 0; b < up.size(); b += block_bytes) {
-      for (std::size_t offset : {0U, 2U}) {
+      for (std::size_t offset : scales) {
         __half scale;
         std::memcpy(&scale, up.data() + b + offset, sizeof(scale));
         scale = __float2half(__half2float(scale) / 1024.0F);

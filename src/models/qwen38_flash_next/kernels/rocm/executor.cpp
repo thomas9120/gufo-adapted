@@ -1838,12 +1838,10 @@ bool Executor::MoeExperts(const DeviceLayer& l, const float* x, float* out,
   // F16 matrix-core GEMM per (expert, row tile).
   const GgmlType gate_format = l.ffn_gate_exps.type;
   const GgmlType down_format = l.ffn_down_exps.type;
-  const bool k_quant_gate =
-      gate_format == GgmlType::kQ4_K || gate_format == GgmlType::kQ5_K;
   const bool wmma_experts =
       ExpertMatrixRows(n_tokens) &&
-      (k_quant_gate || gate_format == GgmlType::kIQ3_S ||
-       gate_format == GgmlType::kIQ4_XS) &&
+      (gate_format == GgmlType::kQ4_K || gate_format == GgmlType::kQ5_K ||
+       gate_format == GgmlType::kIQ3_S || gate_format == GgmlType::kIQ4_XS) &&
       l.ffn_up_exps.type == gate_format &&
       (down_format == GgmlType::kQ5_1 || down_format == GgmlType::kQ8_0 ||
        down_format == GgmlType::kIQ4_NL) &&
@@ -1869,10 +1867,8 @@ bool Executor::MoeExperts(const DeviceLayer& l, const float* x, float* out,
     // materializing the gate. Smaller buckets favor separate projections.
     auto* up_half = reinterpret_cast<__half*>(s_.up_e);
     const WeightType gate_type = static_cast<WeightType>(gate_format);
-    // The paired kernel caches K-quant superblocks; IQ gate/up projections
-    // run separately.
     const bool gated_ok =
-        n_tokens >= 1024 && routed_tile_rows_ == 48 && k_quant_gate
+        n_tokens >= 1024 && routed_tile_rows_ == 48
             ? RoutedGatedF16Gemm(
                   l.ffn_gate_exps.data, l.ffn_up_exps.data, gate_type, x_half,
                   s_.routed_tiles + routed_pair_offset_, routed_pair_tiles_,
