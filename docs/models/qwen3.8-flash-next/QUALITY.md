@@ -11,7 +11,7 @@ qualification. Latest measurements: September 20–23, 2026.
 | MTP versus scalar CPU formulas, eight text/image states | Fusion/attention relative RMS <0.0008 (limit 0.002); full-width normalization, split projections, recursive carry and full Q8 head checked |
 | Batched MTP/AR, C2/C4/C6/C8 | Logits, tokens, acceptance, RNG and every 1–8-token rollback prefix match isolated execution |
 | Sampling | 23 AR/MTP configurations; shared FP64 target filtering/CDF, p/q acceptance and residual correction pass |
-| Prefill and cache | Full logits match across tested chunk boundaries, short tails and restored state through 4096 tokens; past 2048, other chunk shapes can differ ([causes](../../plans/iq-experts-prefill.md#natural-text-check)) |
+| Prefill and cache | Full logits match across tested chunk boundaries, short tails and restored state through 4096 tokens; past 2048, a chunk boundary inside an absolute four-position group can differ ([causes](../../plans/iq-experts-prefill.md#natural-text-check)) |
 | Scalar versus bulk prefill, 2176 tokens | Same top-1; logit RMSE 0.18, not bit-identical |
 | Serving | Cancellation, three-turn continuation, reasoning/tool history, concurrent image/text isolation and disk restart pass |
 

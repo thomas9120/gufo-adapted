@@ -260,13 +260,35 @@ The width dependence predates this candidate and has three causes:
   result no longer depends on where the batch ends. 4-aligned prefill, and so
   the qualification capture, is byte-identical; p8 now equals p4 exactly on a
   2,579-token wikitext slice.
-- Unaligned chunk starts still change which queries share a key union.
-- The indexer's BF16 key and query projections run through hipBLASLt, whose
-  kernel and edge tiles depend on the batch width. The deterministic F16
-  route for the router and alpha/beta projections does not cover BF16.
+- Packed groups were counted from each chunk's start, so an unaligned start
+  changed which queries share a key union. Groups now sit at absolute
+  multiples of four: a split at any multiple of four is exact, even after an
+  unaligned earlier chunk, while a boundary inside a group still changes
+  that group's union.
+- The indexer's BF16 key and query projections ran through hipBLASLt, whose
+  kernel and edge tiles depend on the batch width. They now take the
+  deterministic GEMM of the F16 router and alpha/beta projections, with BF16
+  matrix instructions; `blaslt_ops_test` fails on its chunk split without
+  that route. These tensors are BF16 in both GGUFs, so every sparse-prefill
+  logit changes slightly in both formats: on the slice, the new p8 agrees
+  with the old p8 on 98.87% of top-1 tokens past 2048. The normal-prefill
+  capture keeps its 96- to 2048-token prefixes byte-identical, but 2 of the
+  48 top-1 tokens after 4096-token prefixes change. The qualification
+  records therefore describe `ec31961208de` only, in both formats.
 
 On that slice, the 530 sparse positions changed top-1 on 14 rows between
-p8 and p1 before the kernel change and on 9 after it.
+p8 and p1 before the kernel change and on 9 after it, with or without the
+BF16 route. Anchoring trades one exact case for another. `--logit-eval`
+scores position 0 alone and then chunks from position 1, so every boundary
+falls one past a multiple of four, inside a group. p8 and p4, equal under
+chunk-relative packing, now agree on 98.30% of top-1 tokens past 2048, and
+p8 versus p1 flips 12 rows. Schedules whose boundaries after a 3- or 7-token
+first chunk are multiples of four (8- and 4-token chunks) match on every row.
+
+Against `ba92dc66` (the bounded loads alone), the two changes together run
+within noise of it under the production timing protocol below, one ABBA
+pair per model: IQ pp2048/pp4096/tg128 +0.19%/+0.93%/-0.02%, Q4
++0.16%/+1.10%/+0.28%.
 
 This is a quantized-checkpoint comparison over one natural-text slice, not
 an unquantized teacher or capability score, and it does not supply the

@@ -272,10 +272,9 @@ void CheckPrefillChunks(const std::shared_ptr<qfn::Model>& model) {
     if (mode == gufo::core::SessionMode::kSpeculative && !model->HasMtp())
       continue;
     // Both sessions first sync `shared` tokens. Sparse attention packs four
-    // queries counted from the batch start, so an unaligned shared prefix
-    // fixes the packing while `boundary` ends a batch inside a group. Other
-    // splits past the budget can still differ: the BF16 indexer projections
-    // take hipBLASLt kernels that depend on the batch width.
+    // queries anchored at absolute multiples of four, so past the budget a
+    // split at a multiple of four is exact even after an unaligned shared
+    // prefix; a split inside a group can still differ.
     struct Case {
       unsigned length, shared, boundary;
     };
@@ -283,8 +282,8 @@ void CheckPrefillChunks(const std::shared_ptr<qfn::Model>& model) {
          {Case{136, 0, 94}, Case{136, 0, 103}, Case{136, 0, 104},
           Case{136, 0, 127}, Case{136, 0, 128}, Case{136, 0, 135},
           Case{2048, 0, 1025}, Case{4096, 0, 2048}, Case{4096, 0, 1024},
-          Case{3072, 0, 1024}, Case{2309, 2049, 2053}, Case{2435, 2051, 2055},
-          Case{3072, 2049, 2561}}) {
+          Case{3072, 0, 1024}, Case{2309, 2049, 2052}, Case{2435, 2051, 2056},
+          Case{3072, 2049, 2560}, Case{3072, 2050, 2052}}) {
       std::vector<std::int32_t> tokens(length);
       for (std::size_t i = 0; i < tokens.size(); ++i)
         tokens[i] = pattern[i % pattern.size()];
