@@ -34,6 +34,7 @@ print('stderr is captured', file=sys.stderr, flush=True)
 time.sleep(0.6)
 class Handler(BaseHTTPRequestHandler):
     metrics_requests = 0
+    props_requests = 0
     def do_GET(self):
         if self.path == '/metrics':
             Handler.metrics_requests += 1
@@ -53,6 +54,15 @@ class Handler(BaseHTTPRequestHandler):
                     f'llamacpp:tokens_predicted_total {generated}\\n'
                     f'llamacpp:requests_processing {int(prompt > 0)}\\n'
                     'llamacpp:requests_deferred 2\\n').encode()
+        elif self.path == '/props':
+            Handler.props_requests += 1
+            if Handler.props_requests == 2:
+                self.send_response(503)
+                self.end_headers()
+                return
+            body = json.dumps({'model_path': '/models/loaded.gguf', 'build_info': 'fixture-revision',
+                               'default_generation_settings': {'n_ctx': 8192},
+                               'modalities': {'vision': True}}).encode()
         else:
             body = json.dumps({'status': 'ready', 'model': 'fixture'}).encode()
         self.send_response(200)
@@ -173,6 +183,37 @@ class ProcessTest(unittest.TestCase):
         self.assertIsNotNone(restarted)
         self.assertIsNone(restarted["live_prefill_tps"])
         self.assertIsNone(restarted["live_generation_tps"])
+
+    def test_props_poll_failure_recovery_stop_and_restart(self):
+        port = unused_port()
+        server = FAKE_SERVER.replace("if Handler.metrics_requests == 2:", "if Handler.metrics_requests == -1:")
+        argv = [PYTHON, "-u", "-c", server, str(port)]
+        self.assertIsNone(self.manager.start(argv, port, "fixture")["props"])
+        self.wait_for("ready")
+        for expected in (True, False, True):
+            deadline = time.monotonic() + 8
+            while time.monotonic() < deadline:
+                snapshot = self.manager.snapshot()
+                props = snapshot["props"]
+                if (props is not None) == expected:
+                    break
+                time.sleep(0.05)
+            else:
+                self.fail(f"Expected props available={expected}, got {props}")
+            self.assertIsNotNone(snapshot["metrics"])
+            if expected:
+                self.assertEqual(props["build_info"], "fixture-revision")
+                self.assertEqual(props["model_path"], "/models/loaded.gguf")
+                self.assertEqual(props["default_generation_settings"]["n_ctx"], 8192)
+                self.assertTrue(props["modalities"]["vision"])
+        self.assertIsNone(self.manager.stop()["props"])
+        argv[3] = FAKE_SERVER.replace("fixture-revision", "rebuilt-revision")
+        self.assertIsNone(self.manager.start(argv, port, "fixture")["props"])
+        self.wait_for("ready")
+        deadline = time.monotonic() + 8
+        while self.manager.snapshot()["props"] is None and time.monotonic() < deadline:
+            time.sleep(0.05)
+        self.assertEqual(self.manager.snapshot()["props"]["build_info"], "rebuilt-revision")
 
     def test_metrics_parser_rejects_missing_and_nonfinite_values(self):
         text = ("# HELP ignored comment\n"

@@ -187,6 +187,11 @@ fieldset:disabled { opacity: .5; }
 .connection > span { color: var(--muted); font-size: 11px; }
 code { font: 12px/1.5 Consolas, monospace; overflow-wrap: anywhere; }
 .connection button { font-size: 11px; padding: 3px 9px; }
+.runtime-identity { display: flex; flex-wrap: wrap; gap: 10px 24px; margin: 12px 0; }
+.runtime-identity > div { min-width: 0; }
+.runtime-identity .loaded-model { width: 100%; }
+.runtime-identity dt { color: var(--muted); font-size: 11px; }
+.runtime-identity dd { margin: 3px 0 0; font-size: 12px; overflow-wrap: anywhere; }
 .runtime details { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 15px; }
 .performance { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 16px; }
 .performance h3 { font-size: 13px; margin: 0 0 12px; }

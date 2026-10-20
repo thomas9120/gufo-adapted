@@ -41,7 +41,7 @@ class ServerTest(unittest.TestCase):
         return self.client.post("/api/start", json={"settings": settings, "preset_id": "default"}, headers=self.headers)
 
     def test_control_and_file_routes_require_same_origin_and_runtime_token(self):
-        for method, path in (("get", "/api/browse"), ("get", "/api/settings"),
+        for method, path in (("get", "/api/browse"), ("get", "/api/settings"), ("get", "/api/status"),
                              ("post", "/api/presets"), ("post", "/api/start"), ("post", "/api/stop"), ("post", "/api/exit")):
             for headers in ({}, self.headers | {"Origin": "https://example.com"},
                             {"X-Gufo-Token": "stale token"}):
@@ -52,6 +52,15 @@ class ServerTest(unittest.TestCase):
         self.assertIn("frame-ancestors 'none'", self.client.get("/").headers["Content-Security-Policy"])
         self.manager.start.assert_not_called()
         self.manager.stop.assert_not_called()
+
+    def test_status_proxies_engine_identity_under_same_origin_policy(self):
+        props = {"build_info": "actual-revision", "model_path": "C:/models/actual.gguf",
+                 "default_generation_settings": {"n_ctx": 8192}, "modalities": {"vision": True}}
+        self.manager.snapshot.return_value = {"state": "ready", "props": props}
+        response = self.client.get("/api/status", headers=self.headers)
+        self.assertEqual(response.json["props"], props)
+        self.assertEqual(response.headers["Cache-Control"], "no-store")
+        self.assertIn("connect-src 'self'", response.headers["Content-Security-Policy"])
 
     def test_save_restore_preview_and_browse(self):
         settings = DEFAULTS | {"context": 8192, "models_dir": str(self.root)}
