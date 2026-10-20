@@ -32,18 +32,22 @@ IQ deliberately changes routed activation arithmetic from INT8 quantization
 to F16. All 999 baseline logit rows change; normal-prefill fixture perplexity
 increases **3.3522%**, from 1.2427840354 to 1.2844440694, and 314/324 top-1
 predictions agree. AR/MTP halves are byte-identical within the candidate.
-These repeated-pattern continuation fixtures do not establish broad capability.
+The increase comes from the 22 of 144 labels where the repeated pattern
+wraps into a string-initial token the model never sees naturally (+26%);
+the other 122 labels improve 0.27%. On 26,572 wikitext positions through
+the prefill path, the build change is +0.23% at p8 and -0.07% at p5. That
+is within the +0.22% the baseline alone moves between those widths, and
+every interval includes zero.
 
 Independent F64 operators pass their unchanged limits, including real expert
 dimensions and tiny/ragged batches. On three short matched CPU-reference
 fixtures, top-1 agreement improves from 51/52 to 52/52 and mean KL from
 0.00439308 to 0.00250885; maximum KL increases from 0.03179 to 0.03374.
-Printed reference KL values have five decimal places. These short fixtures
-do not cover the larger 2K/4K continuation differences.
+Printed reference KL values have five decimal places.
 
 The candidate remains experimental. No golden or tolerance was changed, and
 the model has no declared numerical acceptance limits for this transition.
-Linux, broad natural-text/teacher qualification and image qualification remain
+Linux, unquantized-teacher qualification and image qualification remain
 unrun. [Scope, commands and interpretation](../../plans/iq-experts-prefill.md)
 and [compact identities/results](artifacts/iq-prefill-f16-candidate.json).
 

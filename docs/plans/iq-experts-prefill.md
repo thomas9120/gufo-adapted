@@ -190,6 +190,75 @@ check against the quantized checkpoint, not an original unquantized teacher
 or a substitute for a justified deep-context numerical policy. It does not
 resolve the measured repetitive-continuation perplexity increase.
 
+## Fixture perplexity attribution
+
+October 19 follow-up from the retained captures; no new model run. Per-label
+NLL over the 324-row capture, with labels reconstructed from the three
+repeated token patterns, reproduces the recorded baseline, candidate and Q4
+mean NLLs to 1e-15. The fixture repeats a pattern tokenized once, so every
+wrap places a string-initial `Virtual` or `A` (no leading space) after `". "`.
+The model expects ` Virtual`, ` A` or `<|im_end|>` there; those labels carry
+high, unstable NLL in every build.
+
+| AR labels (MTP rows duplicate them) | Labels | Baseline | Candidate | Q4_K_XL | Change |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| All | 144 | 1.24278 | 1.28444 | 1.15158 | +3.35% |
+| Pattern wrap (space or string-initial token) | 22 | 3.87579 | 4.88280 | 2.42342 | +25.98% |
+| Interior | 122 | 1.01233 | 1.00956 | 1.00699 | **-0.27%** |
+
+Three wrap positions, doubled by the identical AR/MTP halves, contribute
++13.4 nats against a net +9.5 nats; 230 of 288 labels improve. Among the
+wrap labels 14 improve and 8 worsen. The increase is a tokenization-boundary
+artifact of this fixture, not a broad shift.
+
+Weight rounding is excluded independently. Emulating the kernel's
+`fma_f16(q, f16(scale), 0)` on every 32nd expert of every layer (3.7 billion
+real weights) against exact F32 dequantization gives median row relative
+error 2.98e-4 for IQ3_S, 2.77e-4 for IQ4_XS and 2.07e-4 for IQ4_NL, against
+2.06e-4 for the already-routed Q8_0 down layers. Seven of a billion IQ4_NL
+weights are F16 subnormal; none flush to zero. Kernel-variant dependence is
+also excluded: the candidate's session suite already requires byte-exact
+logits for a 2048-token prefill split at 1025, which mixes the separate and
+paired gate/up kernels and different down tile maps.
+
+## Natural-text check
+
+Wikitext-2 test, first 109,682 bytes cut at a line boundary (SHA-256
+`ea9139f01dd970bf507de446176c2bf27f22c6229659fa611dab0a3888d19e29`;
+full file `173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08`),
+26,574 tokens and 26,572 scored positions. Both retained release binaries
+run `gufo bench --logit-eval` with the shared Q8_0 MTP sidecar and prefill
+schedules `p8:p5`. Prefill logit rows are capped at draft tokens plus one,
+so p8 is the widest scored prefill chunk. Prefill always takes the routed
+path, so p8 exercises the candidate's F16 experts. Intervals are 95%
+block-bootstrap (256-position blocks).
+
+| Comparison | Perplexity | Change | 95% interval | Mean top-64 KL | Top-1 agreement |
+| --- | --- | ---: | --- | ---: | ---: |
+| Baseline -> candidate, p8 | 2.534419 -> 2.540233 | +0.229% | -0.103% .. +0.594% | 0.0182 | 96.08% |
+| Baseline -> candidate, p5 | 2.539890 -> 2.538083 | -0.071% | -0.330% .. +0.232% | 0.0182 | 95.89% |
+| Control: baseline p8 -> p5 | 2.534419 -> 2.539890 | +0.216% | -0.054% .. +0.457% | 0.0139 | 96.69% |
+| Control: candidate p8 -> p5 | 2.540233 -> 2.538083 | -0.085% | -0.337% .. +0.171% | 0.0109 | 97.08% |
+
+The build change has no measurable natural-text effect: its sign follows the
+chunk width and is the same size as re-chunking either build. Below position
+2048, where both builds are chunk-width exact, the candidate improves
+perplexity from 1.769443 to 1.763374 (-0.34%, interval -1.76% .. +0.96%)
+and top-1 accuracy from 85.05% to 85.64%; 1,296 positions improve and 751
+worsen.
+
+Both builds are byte-exact between p8 and p5 for positions below 2048, then
+differ on 92% of later rows. That is where `indexer_top_k` = 2048 sparse
+attention starts selecting 4-token compressed blocks, and p5 ends chunks
+inside a block. The fixture's largest changes, in prose continuations after
+2K and 4K prefill, sit in this regime. The width dependence predates this
+candidate and is investigated separately.
+
+This is a quantized-checkpoint comparison over one natural-text slice, not
+an unquantized teacher or capability score, and it does not supply the
+model-owned numerical limits the qualification gate requires. Dumps and the
+comparison scripts are under ignored `build/iq-ppl-cause/`.
+
 ## Exploratory production timings
 
 These measurements do not override IQ's failed exact numerical gate and are
@@ -272,13 +341,13 @@ python tools/models/qualify.py compare --model qwen3.8-flash-next --plan artifac
 The narrow staging adaptation is an effective prefill experiment: large
 native gains, a smaller cold-TTFT gain, no persistent expert expansion and
 no meaningful Q4/decode control movement. **Do not promote it as qualified.**
-The independent short-prompt reference improves on average while the
-repetitive continuation fixture worsens; neither supplies a model-owned
-acceptance policy. The next decision is whether to investigate this F16
-transition with broader independent quality evidence or require the old
-INT8 arithmetic and pursue a bit-preserving optimization. Existing exact,
+The independent short-prompt reference improves on average. The repetitive
+fixture's increase is confined to tokenization-boundary labels, and wikitext
+shows no effect beyond chunk-width noise. None of these supplies a
+model-owned acceptance policy. Promotion needs declared numerical limits for
+this F16 transition; the alternative is to require the old INT8 arithmetic
+and pursue a bit-preserving optimization. Existing exact,
 operator and state gates must remain intact. Linux, multi-client timing,
 GPU timeline profiling and broader teacher/capability evaluation are unrun.
 The timings cover the combined F16/paired candidate; a full-model pairing
-ablation and a first-differing-layer capture for the larger IQ continuation
-changes are also unrun.
+ablation is also unrun.
