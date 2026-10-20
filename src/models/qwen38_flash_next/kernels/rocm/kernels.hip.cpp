@@ -3188,7 +3188,12 @@ __launch_bounds__(256, 2) __global__ void WmmaCausalAttentionKernel(
   const std::uint32_t linear = blockIdx.y * gridDim.x + blockIdx.x;
   const std::uint32_t query_group =
       first_query_group + (kPackHeads ? linear / kWmmaKvHeads : blockIdx.x);
-  const std::uint32_t query_start = query_group * kQueryRows;
+  // Packed groups are anchored at absolute multiples of four, so a query
+  // shares its key union with the same neighbors in every batch that holds
+  // them. A batch starting inside a group wraps its leading rows past
+  // n_tokens, which marks them dead.
+  const std::uint32_t query_start =
+      (query_group * kQueryRows) - (kPackHeads ? start_pos % kQueryRows : 0);
   const std::uint32_t kv_head =
       kPackHeads ? linear % kWmmaKvHeads : blockIdx.y / (kWmmaGqa / kWmmaHeads);
   const std::uint32_t first_query_head =
@@ -3265,9 +3270,10 @@ __launch_bounds__(256, 2) __global__ void WmmaCausalAttentionKernel(
   // Key tiles are gathered from `kBlocksPerTile` selection blocks (ratio
   // keys each). In the sparse window the blocks come from the union of this
   // block's query masks (every row still applies its own mask below), then
-  // every block from the earliest row's tail on; the dense window walks the
-  // blocks in order. The sweep therefore costs the union of the selected
-  // windows, not the context.
+  // every block from the group's first position's tail on, whether or not
+  // that row is in the batch; the dense window walks the blocks in order.
+  // The sweep therefore costs the union of the selected windows, not the
+  // context.
   constexpr std::uint32_t kBlocksPerTile = kKeys / 4;
   static_assert(kBlocksPerTile == 4, "a tile is four selection blocks");
   const std::uint32_t n_blocks = (max_visible + ratio - 1) / ratio;
@@ -3284,7 +3290,6 @@ __launch_bounds__(256, 2) __global__ void WmmaCausalAttentionKernel(
   if (sparse) {
     // Consecutive word ranges per thread make the prefix scan preserve
     // increasing block order, including ties and the always-visible tail.
-    const unsigned live_rows = min(kQueryRows, n_tokens - query_start);
     const unsigned word_count = (n_blocks + 31) / 32;
     const unsigned words_per_thread = (word_count + 255) / 256;
     unsigned local_words[8];
@@ -3294,8 +3299,10 @@ __launch_bounds__(256, 2) __global__ void WmmaCausalAttentionKernel(
       const unsigned w = tid * words_per_thread + j;
       unsigned bits = 0;
       if (j < words_per_thread && w < word_count) {
-        for (unsigned r = 0; r < live_rows; ++r)
-          bits |= mask[size_t(query_start + r) * mask_words + w];
+        for (unsigned r = 0; r < kQueryRows; ++r) {
+          if (query_start + r < n_tokens)
+            bits |= mask[size_t(query_start + r) * mask_words + w];
+        }
         if (w * 32 >= tail_block)
           bits = ~0u;
         else if ((w + 1) * 32 > tail_block)
@@ -6597,11 +6604,12 @@ bool WmmaCausalAttention(const float* q, const float* gate,
   }
   if (mask != nullptr) {
     constexpr std::uint32_t kPackedQueries = 4;
+    // Groups start at absolute multiples of four (see the kernel).
+    const std::uint32_t span = (start_pos % kPackedQueries) + n_tokens;
     const std::uint32_t first_group =
-        last_only ? (n_tokens - 1) / kPackedQueries : 0;
-    const dim3 grid(
-        (n_tokens + kPackedQueries - 1) / kPackedQueries - first_group,
-        kWmmaKvHeads);
+        last_only ? (span - 1) / kPackedQueries : 0;
+    const dim3 grid((span + kPackedQueries - 1) / kPackedQueries - first_group,
+                    kWmmaKvHeads);
     // At deep sparse windows, staging the current V before fetching the
     // next one shortens their overlapping register lifetimes.
     if (start_pos >= 65536) {

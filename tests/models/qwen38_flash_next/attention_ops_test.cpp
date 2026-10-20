@@ -429,10 +429,12 @@ double Compare(std::uint32_t n_tokens, std::uint32_t start_pos, bool masked,
       throw std::runtime_error("last-tile attention rejected the geometry");
     }
     const auto tail = Download(&d_wmma, q_count);
+    // Sparse groups of four start at absolute multiples of four.
     const std::uint32_t tile_rows = mask_ptr ? 4 : 16;
+    const std::uint32_t lead = mask_ptr ? start_pos % tile_rows : 0;
+    const std::uint32_t group = (lead + n_tokens - 1) / tile_rows * tile_rows;
     const std::size_t begin =
-        static_cast<std::size_t>((n_tokens - 1) / tile_rows * tile_rows) *
-        kQWidth;
+        static_cast<std::size_t>(group > lead ? group - lead : 0) * kQWidth;
     for (std::size_t i = 0; i < q_count; ++i) {
       if (i < begin ? tail[i] != poison
                     : std::memcmp(&out[i], &tail[i], sizeof(float)) != 0) {
@@ -682,7 +684,12 @@ void CheckLists(std::uint32_t n_tokens, std::uint32_t start_pos,
   std::cout << " bitwise-equal\n";
 }
 
-void CheckChunks(std::uint32_t n, std::uint32_t split) {
+/// One batch over queries [first, n) against two split at `split`. A sparse
+/// mask packs four queries per group, anchored at absolute positions, so
+/// any split at a multiple of four must also be exact from an unaligned
+/// `first`.
+void CheckChunks(std::uint32_t n, std::uint32_t split, std::uint32_t first = 0,
+                 bool sparse = false) {
   const std::size_t count = std::size_t(n) * kQWidth;
   HipBuffer<float> queries(count), gates(count), full(count), chunked(count);
   HipBuffer<__half> keys(std::size_t(n) * kKvWidth),
@@ -697,32 +704,46 @@ void CheckChunks(std::uint32_t n, std::uint32_t split) {
                    [](float x) { return __float2half(x); });
     Upload(destination, half);
   }
+  // Rows of absolute queries; about one block in four is selected.
+  const std::uint32_t mask_words = sparse ? (n / kRatio + 32) / 32 : 0;
+  HipBuffer<std::uint32_t> mask(
+      std::max<std::size_t>(std::size_t(n) * mask_words, 1));
+  if (sparse) {
+    std::vector<std::uint32_t> words(std::size_t(n) * mask_words);
+    std::uint32_t state = 0x2049U;
+    for (auto& word : words)
+      word = NextRandom(&state) & NextRandom(&state);
+    Upload(&mask, words);
+  }
   const auto run = [&](std::uint32_t start, std::uint32_t rows, float* out) {
     const auto offset = std::size_t(start) * kQWidth;
+    const std::uint32_t* rows_mask =
+        sparse ? mask.get() + std::size_t(start) * mask_words : nullptr;
     if (!q::WmmaCausalAttention(queries.get() + offset, gates.get() + offset,
-                                keys.get(), values.get(), nullptr, 0,
+                                keys.get(), values.get(), rows_mask, mask_words,
                                 out + offset, rows, start, kHeads, kKvHeads,
                                 kDim, kRatio, nullptr)) {
       throw std::runtime_error("chunk attention rejected geometry");
     }
   };
-  run(0, n, full.get());
-  run(0, split, chunked.get());
+  run(first, n - first, full.get());
+  run(first, split - first, chunked.get());
   run(split, n - split, chunked.get());
   const auto a = Download(&full, count);
   const auto b = Download(&chunked, count);
-  std::size_t differences = 0, first = count;
+  std::size_t differences = 0, first_difference = count;
   float max_error = 0;
-  for (std::size_t i = 0; i < count; ++i) {
+  for (std::size_t i = std::size_t(first) * kQWidth; i < count; ++i) {
     if (a[i] != b[i]) {
       ++differences;
-      first = std::min(first, i);
+      first_difference = std::min(first_difference, i);
       max_error = std::max(max_error, std::abs(a[i] - b[i]));
     }
   }
-  std::cout << "chunk attention n=" << n << " split=" << split
+  std::cout << "chunk attention n=" << n << " first=" << first
+            << " split=" << split << (sparse ? " sparse" : "")
             << " differing=" << differences << " max=" << max_error
-            << " first_row=" << first / kQWidth << '\n';
+            << " first_row=" << first_difference / kQWidth << '\n';
   if (differences != 0)
     throw std::runtime_error("attention depends on prefill chunk boundary");
 }
@@ -733,6 +754,11 @@ int main() {
   try {
     CheckChunks(136, 94);
     CheckChunks(2048, 1025);
+    // Sparse batches that start inside a packed group, split where the
+    // chunk-relative and absolute packings disagree, and where they agree.
+    CheckChunks(2600, 2052, 2049, true);
+    CheckChunks(2600, 2560, 2050, true);
+    CheckChunks(2600, 2560, 2048, true);
     CheckPreparation(1, 0, 64);
     CheckPreparation(8, 4096, 64);
     CheckPreparation(65, 131069, 64);
