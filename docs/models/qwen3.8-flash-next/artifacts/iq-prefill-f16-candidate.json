@@ -1,0 +1,1762 @@
+{
+  "schema": "gufo-iq-prefill-f16-experiment/1",
+  "measuredOn": "2026-10-19",
+  "decision": "Experimental; IQ exact numerical gate fails. No tolerance or golden changed. No production promotion.",
+  "rawRoot": "artifacts/iq-prefill",
+  "plan": {
+    "platform": "windows",
+    "baseSha": "0817d23b697460626d9da2bcb815b1a14ac1922c",
+    "headSha": "ec31961208defb3ec2a941c5d003129ab3e4ee1a",
+    "mergeBase": "0817d23b697460626d9da2bcb815b1a14ac1922c",
+    "dirty": false,
+    "untracked": [
+      "iq-experts-prefill-gap.md"
+    ]
+  },
+  "builds": {
+    "baseline": {
+      "source": {
+        "dirty": false,
+        "repo": "gufo",
+        "revision": "0817d23b697460626d9da2bcb815b1a14ac1922c",
+        "worktree": "gufo"
+      },
+      "binary": {
+        "name": "gufo.exe",
+        "bytes": 93370880,
+        "sha256": "a3d1f6a7b652adf950b90208972c475930db0f7d5d14a5ca629a6b87710e9b52",
+        "version": "gufo version 0817d23b6974"
+      },
+      "sessionTest": {
+        "name": "qwen38_flash_next_session_test.exe",
+        "bytes": 84717568,
+        "sha256": "f863cbb08263107ef5b39cf40a9e9a3b6a30a56d335a92cdd2cd6b57630f9edb"
+      },
+      "fingerprintId": "e0e6abb322b4484cb5577d0fb0f348268d54faa5a6c04255384d0dde7976b217"
+    },
+    "candidate": {
+      "source": {
+        "dirty": true,
+        "repo": ".",
+        "revision": "ec31961208defb3ec2a941c5d003129ab3e4ee1a",
+        "worktree": "t3-907ea0ad"
+      },
+      "binary": {
+        "name": "gufo.exe",
+        "bytes": 94080000,
+        "sha256": "8cc83cd81a006f8023e34a08326b0af747998110f76e7b499fc934fd9d3204c4",
+        "version": "gufo version ec31961208de"
+      },
+      "sessionTest": {
+        "name": "qwen38_flash_next_session_test.exe",
+        "bytes": 85422080,
+        "sha256": "a5996a69655d9a7dfd829cb71695283815d8ee19b78208c467db169d076aa0d0"
+      },
+      "fingerprintId": "e0e6abb322b4484cb5577d0fb0f348268d54faa5a6c04255384d0dde7976b217"
+    }
+  },
+  "models": {
+    "iq": {
+      "status": "FAIL",
+      "errors": [
+        "capture 'logits': 'logits-s0.bin.sha256' differ: DIFFER: 225/225 raw-logit rows; first positions: [1, 2, 3, 4, 5, 6, 7, 8]",
+        "capture 'logits': 'logits-s1.bin.sha256' differ: DIFFER: 225/225 raw-logit rows; first positions: [1, 2, 3, 4, 5, 6, 7, 8]",
+        "capture 'logits': 'logits-s2.bin.sha256' differ: DIFFER: 225/225 raw-logit rows; first positions: [1, 2, 3, 4, 5, 6, 7, 8]",
+        "capture 'prefill-logits': 'prefill.bin' differs between baseline and candidate"
+      ],
+      "unverified": [],
+      "warnings": [],
+      "control": false,
+      "scopes": [
+        "arithmetic",
+        "prefill",
+        "state"
+      ],
+      "inputs": {
+        "gguf": [
+          {
+            "name": "Qwen3.8-Flash-Next-UD-IQ4_XS-00001-of-00003.gguf",
+            "bytes": 10946624,
+            "sha256": "5ce89370720f8bf90890f439361282104c1aa1482d4013bb9a50923e758e71a4"
+          },
+          {
+            "name": "Qwen3.8-Flash-Next-UD-IQ4_XS-00002-of-00003.gguf",
+            "bytes": 49835229856,
+            "sha256": "577a38a2392b40ca2193cea502e1d92f60b8cd370675d308e0ec21885d9daaa7"
+          },
+          {
+            "name": "Qwen3.8-Flash-Next-UD-IQ4_XS-00003-of-00003.gguf",
+            "bytes": 43836407744,
+            "sha256": "d4634e6d84f0ebb0940be15c90d3790bf6464e3dea3a1cddc567dc0e83ad8833"
+          }
+        ],
+        "mtp": [
+          {
+            "name": "mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf",
+            "bytes": 2786568256,
+            "sha256": "5ff54097406a905cf3a724c709124ceb0e3e10235ee862298969e91c96fa96e6"
+          }
+        ]
+      },
+      "comparisons": [
+        {
+          "capture": "logits",
+          "output": "logits-s0.bin.sha256",
+          "comparator": "logit-sha256",
+          "result": "differ",
+          "detail": "DIFFER: 225/225 raw-logit rows; first positions: [1, 2, 3, 4, 5, 6, 7, 8]",
+          "baseline": {
+            "name": "logits-s0.bin.sha256",
+            "bytes": 16699,
+            "sha256": "c7f6885ec98108e228508018584cab44c3eceb656332ab605615296678da6487"
+          },
+          "candidate": {
+            "name": "logits-s0.bin.sha256",
+            "bytes": 16699,
+            "sha256": "4ea15b2b09d796207cd37289ced306c421a83e426ca6201db84c0cc86cab02b2"
+          }
+        },
+        {
+          "capture": "logits",
+          "output": "logits-s1.bin.sha256",
+          "comparator": "logit-sha256",
+          "result": "differ",
+          "detail": "DIFFER: 225/225 raw-logit rows; first positions: [1, 2, 3, 4, 5, 6, 7, 8]",
+          "baseline": {
+            "name": "logits-s1.bin.sha256",
+            "bytes": 16699,
+            "sha256": "c7f6885ec98108e228508018584cab44c3eceb656332ab605615296678da6487"
+          },
+          "candidate": {
+            "name": "logits-s1.bin.sha256",
+            "bytes": 16699,
+            "sha256": "4ea15b2b09d796207cd37289ced306c421a83e426ca6201db84c0cc86cab02b2"
+          }
+        },
+        {
+          "capture": "logits",
+          "output": "logits-s2.bin.sha256",
+          "comparator": "logit-sha256",
+          "result": "differ",
+          "detail": "DIFFER: 225/225 raw-logit rows; first positions: [1, 2, 3, 4, 5, 6, 7, 8]",
+          "baseline": {
+            "name": "logits-s2.bin.sha256",
+            "bytes": 16699,
+            "sha256": "35d903dcccd383a24b45f64e8ce9134a00d0ce2e2230870615bfceaf12f0db02"
+          },
+          "candidate": {
+            "name": "logits-s2.bin.sha256",
+            "bytes": 16699,
+            "sha256": "3d1e001224f734855fce014d838b2fabce3b016f84afcdc57918dadef467e6e0"
+          }
+        },
+        {
+          "capture": "prefill-logits",
+          "output": "prefill.bin",
+          "comparator": "file-sha256",
+          "result": "differ",
+          "detail": null,
+          "baseline": {
+            "name": "prefill.bin",
+            "bytes": 321822720,
+            "sha256": "943e7bc22df220ad1b48799d8117e00b8adbcca8c330961313155218293ce210"
+          },
+          "candidate": {
+            "name": "prefill.bin",
+            "bytes": 321822720,
+            "sha256": "7edfcf6ce5301c9f17e1f5f607a3d0f2e3e898efa0c19e490cd94914fb61e098"
+          }
+        }
+      ],
+      "checks": {
+        "check:build": {
+          "status": "pass",
+          "commands": [
+            {
+              "status": "pass",
+              "exitCode": 0,
+              "durationSeconds": 11.511,
+              "reason": null,
+              "argv": [
+                "powershell",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "tools/windows/build.ps1",
+                "-Preset",
+                "gpu-test",
+                "-Target",
+                "qwen38_flash_next_tests",
+                "-Jobs",
+                "4"
+              ]
+            },
+            {
+              "status": "pass",
+              "exitCode": 0,
+              "durationSeconds": 9.65,
+              "reason": null,
+              "argv": [
+                "powershell",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "tools/windows/build.ps1",
+                "-Preset",
+                "gpu-test",
+                "-Target",
+                "qwen38_flash_next_model_tests",
+                "-Jobs",
+                "4"
+              ]
+            },
+            {
+              "status": "not-applicable",
+              "reason": "declared only for linux",
+              "argv": [
+                "cmake",
+                "--preset",
+                "gpu-test"
+              ]
+            },
+            {
+              "status": "not-applicable",
+              "reason": "declared only for linux",
+              "argv": [
+                "cmake",
+                "--build",
+                "--preset",
+                "gpu-test",
+                "--target",
+                "qwen38_flash_next_tests",
+                "--parallel",
+                "4"
+              ]
+            },
+            {
+              "status": "not-applicable",
+              "reason": "declared only for linux",
+              "argv": [
+                "cmake",
+                "--build",
+                "--preset",
+                "gpu-test",
+                "--target",
+                "qwen38_flash_next_model_tests",
+                "--parallel",
+                "4"
+              ]
+            }
+          ]
+        },
+        "check:fast": {
+          "status": "pass",
+          "commands": [
+            {
+              "status": "pass",
+              "exitCode": 0,
+              "durationSeconds": 0.66,
+              "reason": null,
+              "argv": [
+                "ctest",
+                "--test-dir",
+                "build/gpu-test",
+                "-R",
+                "^qwen38_flash_next\\.(config|ngram|mtp_sampling|prompt_lookup)$",
+                "--output-on-failure",
+                "--no-tests=error",
+                "--output-junit",
+                "artifacts\\iq-prefill\\candidate-iq\\logs\\check-fast-0.junit.xml"
+              ]
+            }
+          ]
+        },
+        "check:kernels": {
+          "status": "pass",
+          "commands": [
+            {
+              "status": "pass",
+              "exitCode": 0,
+              "durationSeconds": 141.862,
+              "reason": null,
+              "argv": [
+                "ctest",
+                "--test-dir",
+                "build/gpu-test",
+                "-R",
+                "^qwen38_flash_next\\.(mtp_ops|blaslt_ops|hc_mix_ops|gdn_ops|attention_ops|moe_epilogue_ops|moe_ids_ops|projection_ops|routed_wmma_ops|iq_experts_ops|select_ops)$",
+                "--output-on-failure",
+                "--no-tests=error",
+                "--output-junit",
+                "artifacts\\iq-prefill\\candidate-iq\\logs\\check-kernels-0.junit.xml"
+              ]
+            }
+          ]
+        },
+        "check:state": {
+          "status": "pass",
+          "commands": [
+            {
+              "status": "pass",
+              "exitCode": 0,
+              "durationSeconds": 250.869,
+              "reason": null,
+              "argv": [
+                "build\\gpu-test\\qwen38_flash_next_session_test.exe",
+                "--model",
+                "{gguf}",
+                "--mtp-model",
+                "{mtp}"
+              ]
+            },
+            {
+              "status": "pass",
+              "exitCode": 0,
+              "durationSeconds": 51.824,
+              "reason": null,
+              "argv": [
+                "build\\gpu-test\\qwen38_flash_next_rollback_test.exe",
+                "--model",
+                "{gguf}",
+                "--mtp-model",
+                "{mtp}"
+              ]
+            },
+            {
+              "status": "pass",
+              "exitCode": 0,
+              "durationSeconds": 58.831,
+              "reason": null,
+              "argv": [
+                "build\\gpu-test\\qwen38_flash_next_snapshot_test.exe",
+                "--model",
+                "{gguf}",
+                "--mtp-model",
+                "{mtp}"
+              ]
+            },
+            {
+              "status": "pass",
+              "exitCode": 0,
+              "durationSeconds": 88.934,
+              "reason": null,
+              "argv": [
+                "build\\gpu-test\\qwen38_flash_next_eos_test.exe",
+                "--model",
+                "{gguf}",
+                "--mtp-model",
+                "{mtp}"
+              ]
+            }
+          ]
+        }
+      },
+      "normalPrefill": {
+        "rows": 324,
+        "exact_rows": 0,
+        "top1_matches": 314,
+        "all_finite": true,
+        "mean_kl": 0.028069693810064158,
+        "max_kl": 1.436666615658797,
+        "max_rmse": 1.4557804796538512,
+        "max_relative_l2": 0.47120116157238656,
+        "max_abs": 10.059874057769775,
+        "prefill_metrics": {
+          "baseline": {
+            "labels": 288.0,
+            "mean_nll": 0.21735405281245235,
+            "perplexity": 1.2427840354363746,
+            "rows": 324.0,
+            "vocab": 248320.0
+          },
+          "candidate": {
+            "labels": 288.0,
+            "mean_nll": 0.2503259939507865,
+            "perplexity": 1.2844440694416628,
+            "rows": 324.0,
+            "vocab": 248320.0
+          }
+        }
+      },
+      "teacherForcedPerplexity": {
+        "baseline": [
+          21.579505,
+          21.579505,
+          21.002209
+        ],
+        "candidate": [
+          21.428664,
+          21.428664,
+          21.069965
+        ]
+      }
+    },
+    "q4": {
+      "status": "PASS",
+      "errors": [],
+      "unverified": [],
+      "warnings": [],
+      "control": false,
+      "scopes": [
+        "arithmetic",
+        "prefill",
+        "state"
+      ],
+      "inputs": {
+        "gguf": [
+          {
+            "name": "Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf",
+            "bytes": 10946624,
+            "sha256": "4448186216b3af4cc558bbce2c3213f01608f8f8b2e5267a9767971dd3ec8082"
+          },
+          {
+            "name": "Qwen3.8-Flash-Next-UD-Q4_K_XL-00002-of-00004.gguf",
+            "bytes": 49859583136,
+            "sha256": "3f342f1c1580473f1ee94ddd5b28206e8c07a70fa1a366f59d1d6c922919a6c9"
+          },
+          {
+            "name": "Qwen3.8-Flash-Next-UD-Q4_K_XL-00003-of-00004.gguf",
+            "bytes": 49376141504,
+            "sha256": "56758f40269cad5cd9b0d3d6fbae0f40f6d5be6de49e4ab392dbe83157d9cbd3"
+          },
+          {
+            "name": "Qwen3.8-Flash-Next-UD-Q4_K_XL-00004-of-00004.gguf",
+            "bytes": 12087983520,
+            "sha256": "753bda48b98ba4f1636134a90a967de1b2d3908a236c026e464777342e53510a"
+          }
+        ],
+        "mtp": [
+          {
+            "name": "mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf",
+            "bytes": 2786568256,
+            "sha256": "5ff54097406a905cf3a724c709124ceb0e3e10235ee862298969e91c96fa96e6"
+          }
+        ]
+      },
+      "comparisons": [
+        {
+          "capture": "logits",
+          "output": "logits-s0.bin.sha256",
+          "comparator": "logit-sha256",
+          "result": "match",
+          "detail": "MATCH: all 225 complete raw-logit rows have identical SHA-256 hashes",
+          "baseline": {
+            "name": "logits-s0.bin.sha256",
+            "bytes": 16699,
+            "sha256": "62ddb07c4391d2dd4f04eaedd76442db204f073433404ae2ff09b7a4cf9e2314"
+          },
+          "candidate": {
+            "name": "logits-s0.bin.sha256",
+            "bytes": 16699,
+            "sha256": "62ddb07c4391d2dd4f04eaedd76442db204f073433404ae2ff09b7a4cf9e2314"
+          }
+        },
+        {
+          "capture": "logits",
+          "output": "logits-s1.bin.sha256",
+          "comparator": "logit-sha256",
+          "result": "match",
+          "detail": "MATCH: all 225 complete raw-logit rows have identical SHA-256 hashes",
+          "baseline": {
+            "name": "logits-s1.bin.sha256",
+            "bytes": 16699,
+            "sha256": "62ddb07c4391d2dd4f04eaedd76442db204f073433404ae2ff09b7a4cf9e2314"
+          },
+          "candidate": {
+            "name": "logits-s1.bin.sha256",
+            "bytes": 16699,
+            "sha256": "62ddb07c4391d2dd4f04eaedd76442db204f073433404ae2ff09b7a4cf9e2314"
+          }
+        },
+        {
+          "capture": "logits",
+          "output": "logits-s2.bin.sha256",
+          "comparator": "logit-sha256",
+          "result": "match",
+          "detail": "MATCH: all 225 complete raw-logit rows have identical SHA-256 hashes",
+          "baseline": {
+            "name": "logits-s2.bin.sha256",
+            "bytes": 16699,
+            "sha256": "f0df91c87fe58a474abf4c0b15e03bfe190c0641068ad55ac93ce02748eab53a"
+          },
+          "candidate": {
+            "name": "logits-s2.bin.sha256",
+            "bytes": 16699,
+            "sha256": "f0df91c87fe58a474abf4c0b15e03bfe190c0641068ad55ac93ce02748eab53a"
+          }
+        },
+        {
+          "capture": "prefill-logits",
+          "output": "prefill.bin",
+          "comparator": "file-sha256",
+          "result": "match",
+          "detail": null,
+          "baseline": {
+            "name": "prefill.bin",
+            "bytes": 321822720,
+            "sha256": "077c6363db6d3f72949db9b0d5346009588b8b38c5634079b7c13cf3eee26084"
+          },
+          "candidate": {
+            "name": "prefill.bin",
+            "bytes": 321822720,
+            "sha256": "077c6363db6d3f72949db9b0d5346009588b8b38c5634079b7c13cf3eee26084"
+          }
+        }
+      ],
+      "checks": {
+        "check:build": {
+          "status": "pass",
+          "commands": [
+            {
+              "status": "pass",
+              "exitCode": 0,
+              "durationSeconds": 11.272,
+              "reason": null,
+              "argv": [
+                "powershell",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "tools/windows/build.ps1",
+                "-Preset",
+                "gpu-test",
+                "-Target",
+                "qwen38_flash_next_tests",
+                "-Jobs",
+                "4"
+              ]
+            },
+            {
+              "status": "pass",
+              "exitCode": 0,
+              "durationSeconds": 9.519,
+              "reason": null,
+              "argv": [
+                "powershell",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "tools/windows/build.ps1",
+                "-Preset",
+                "gpu-test",
+                "-Target",
+                "qwen38_flash_next_model_tests",
+                "-Jobs",
+                "4"
+              ]
+            },
+            {
+              "status": "not-applicable",
+              "reason": "declared only for linux",
+              "argv": [
+                "cmake",
+                "--preset",
+                "gpu-test"
+              ]
+            },
+            {
+              "status": "not-applicable",
+              "reason": "declared only for linux",
+              "argv": [
+                "cmake",
+                "--build",
+                "--preset",
+                "gpu-test",
+                "--target",
+                "qwen38_flash_next_tests",
+                "--parallel",
+                "4"
+              ]
+            },
+            {
+              "status": "not-applicable",
+              "reason": "declared only for linux",
+              "argv": [
+                "cmake",
+                "--build",
+                "--preset",
+                "gpu-test",
+                "--target",
+                "qwen38_flash_next_model_tests",
+                "--parallel",
+                "4"
+              ]
+            }
+          ]
+        },
+        "check:fast": {
+          "status": "pass",
+          "commands": [
+            {
+              "status": "pass",
+              "exitCode": 0,
+              "durationSeconds": 0.653,
+              "reason": null,
+              "argv": [
+                "ctest",
+                "--test-dir",
+                "build/gpu-test",
+                "-R",
+                "^qwen38_flash_next\\.(config|ngram|mtp_sampling|prompt_lookup)$",
+                "--output-on-failure",
+                "--no-tests=error",
+                "--output-junit",
+                "artifacts\\iq-prefill\\candidate-q4\\logs\\check-fast-0.junit.xml"
+              ]
+            }
+          ]
+        },
+        "check:kernels": {
+          "status": "pass",
+          "commands": [
+            {
+              "status": "pass",
+              "exitCode": 0,
+              "durationSeconds": 140.257,
+              "reason": null,
+              "argv": [
+                "ctest",
+                "--test-dir",
+                "build/gpu-test",
+                "-R",
+                "^qwen38_flash_next\\.(mtp_ops|blaslt_ops|hc_mix_ops|gdn_ops|attention_ops|moe_epilogue_ops|moe_ids_ops|projection_ops|routed_wmma_ops|iq_experts_ops|select_ops)$",
+                "--output-on-failure",
+                "--no-tests=error",
+                "--output-junit",
+                "artifacts\\iq-prefill\\candidate-q4\\logs\\check-kernels-0.junit.xml"
+              ]
+            }
+          ]
+        },
+        "check:state": {
+          "status": "pass",
+          "commands": [
+            {
+              "status": "pass",
+              "exitCode": 0,
+              "durationSeconds": 253.21,
+              "reason": null,
+              "argv": [
+                "build\\gpu-test\\qwen38_flash_next_session_test.exe",
+                "--model",
+                "{gguf}",
+                "--mtp-model",
+                "{mtp}"
+              ]
+            },
+            {
+              "status": "pass",
+              "exitCode": 0,
+              "durationSeconds": 54.855,
+              "reason": null,
+              "argv": [
+                "build\\gpu-test\\qwen38_flash_next_rollback_test.exe",
+                "--model",
+                "{gguf}",
+                "--mtp-model",
+                "{mtp}"
+              ]
+            },
+            {
+              "status": "pass",
+              "exitCode": 0,
+              "durationSeconds": 61.314,
+              "reason": null,
+              "argv": [
+                "build\\gpu-test\\qwen38_flash_next_snapshot_test.exe",
+                "--model",
+                "{gguf}",
+                "--mtp-model",
+                "{mtp}"
+              ]
+            },
+            {
+              "status": "pass",
+              "exitCode": 0,
+              "durationSeconds": 90.774,
+              "reason": null,
+              "argv": [
+                "build\\gpu-test\\qwen38_flash_next_eos_test.exe",
+                "--model",
+                "{gguf}",
+                "--mtp-model",
+                "{mtp}"
+              ]
+            }
+          ]
+        }
+      },
+      "normalPrefill": {
+        "rows": 324,
+        "exact_rows": 324,
+        "top1_matches": 324,
+        "all_finite": true,
+        "mean_kl": 0.0,
+        "max_kl": 0.0,
+        "max_rmse": 0.0,
+        "max_relative_l2": 0.0,
+        "max_abs": 0.0,
+        "prefill_metrics": {
+          "baseline": {
+            "labels": 288.0,
+            "mean_nll": 0.14113513363171917,
+            "perplexity": 1.1515802546926903,
+            "rows": 324.0,
+            "vocab": 248320.0
+          },
+          "candidate": {
+            "labels": 288.0,
+            "mean_nll": 0.14113513363171917,
+            "perplexity": 1.1515802546926903,
+            "rows": 324.0,
+            "vocab": 248320.0
+          }
+        }
+      },
+      "teacherForcedPerplexity": {
+        "baseline": [
+          22.829414,
+          22.829414,
+          21.998551
+        ],
+        "candidate": [
+          22.829414,
+          22.829414,
+          21.998551
+        ]
+      }
+    }
+  },
+  "toolchain": {
+    "platform": "Windows 11 x64, native gfx1151",
+    "rocm": "TheRock 10.0.0",
+    "compiler": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 8f497e0992fb7513f7f78a6f6b6f1056c375e961)\nTarget: x86_64-pc-windows-msvc\nThread model: posix\nInstalledDir: {TheRock}/lib/llvm/bin\n",
+    "compilerSha256": "812397316720f03d66425d660f4e861c620125ce3d9c5447035062a442c5ab29",
+    "dependencies": "vcpkg.json and vcpkg-configuration.json unchanged; manifest mode",
+    "fingerprintCaveat": "Diagnostic canonical compiler/driver labels are defaults on this Windows build; actual TheRock/clang identity was verified separately."
+  },
+  "unrun": [
+    "Linux/WSL",
+    "Broad natural-text perplexity or original-checkpoint teacher qualification",
+    "Vision/image-prefix suite and multi-client HTTP performance (unchanged paths)",
+    "GPU timeline/ISA profiling",
+    "First-differing-layer capture for the larger IQ continuation changes",
+    "Separate-versus-paired full-model performance ablation"
+  ],
+  "sourceStateNote": "At record/build time tracked source matched ec319612; runner dirty=true came only from the pre-existing untracked iq-experts-prefill-gap.md. That report was not compiled or modified. Subsequent tracked edits document the experiment.",
+  "config": {
+    "bytes": 9300,
+    "path": "docs/models/qwen3.8-flash-next/artifacts/qualify.json",
+    "sha256": "0282092dc364b70601e40d6f807c8a9d63172486b3d4e0da969751e314260007"
+  },
+  "corpus": {
+    "name": "host-snapshot-corpus.txt",
+    "bytes": 1139,
+    "sha256": "e29a67f814ab3fe409f9c845669e420746d3c5ab55196e0085efbde4f1fae49e"
+  },
+  "independentOracle": {
+    "baseline": {
+      "rows": 52,
+      "top1_matches": 51,
+      "mean_kl": 0.004393076923076923,
+      "max_kl": 0.03179,
+      "binary_sha256": "080b899b14a910068b92199dee7c6debc4f1209a4711b5cfd1ff246667a95b20"
+    },
+    "candidate": {
+      "reference_top1_unchanged": true,
+      "rows": 52,
+      "top1_matches": 52,
+      "mean_kl": 0.0025088461538461536,
+      "max_kl": 0.03374,
+      "binary_sha256": "71b3f9a70a52373d71a15afcdcec01e6dc6160747090aafe9548d99714b0a169",
+      "printed_precision": "KL five decimals, max abs three decimals"
+    },
+    "settings": {
+      "prompts": [
+        "Virtual memory maps pages to physical storage. A process has its own address space.",
+        "def square(x):\n    return x * x\n\nprint(square(7))\n",
+        "A triangle has three sides. Continue red, green, blue, red, green, blue."
+      ],
+      "batch": 64,
+      "context": 4096,
+      "reference": "Unchanged CPU ReferenceModel, same quantized GGUF weights and matched tokens; GPU prompt prefill versus CPU sequential formulas.",
+      "precision": "Printed KL rounded to five decimals; no numerical acceptance threshold is inferred."
+    }
+  },
+  "operators": {
+    "iqCases": 24,
+    "f16F64RelativeLimit": 0.002,
+    "mmqF64AndF16MmqRelativeLimit": 0.01,
+    "maxIqF16F64RelativeError": 0.0005064485394929473,
+    "pairedIq": "64/128-token gate/up matches separate F16 under existing signed-zero convention; replay byte exact.",
+    "resources": {
+      "productionRequiredKernels": 70,
+      "failures": 0,
+      "routedVariants": 27,
+      "scratchOrRegisterSpills": 0,
+      "baseline14ResourceCountsUnchanged": true
+    }
+  },
+  "performance": {
+    "status": "Exploratory timings; IQ numerical gate FAIL. Not promoted to model benchmarks.",
+    "order": "ABBA independently per model and mode; A baseline, B candidate.",
+    "cli": {
+      "iq": {
+        "arms": [
+          {
+            "tag": "cli-iq-0-A",
+            "side": "A",
+            "binary_sha256": "a3d1f6a7b652adf950b90208972c475930db0f7d5d14a5ca629a6b87710e9b52",
+            "version": "gufo version 0817d23b6974",
+            "background_reserved_GiB": 5.691810607910156,
+            "background_max_process": "dwm",
+            "rows": {
+              "pp2048": {
+                "tokens_per_second": 985.64,
+                "printed_stddev": 16.63
+              },
+              "pp4096": {
+                "tokens_per_second": 1157.51,
+                "printed_stddev": 2.3
+              },
+              "tg128": {
+                "tokens_per_second": 28.21,
+                "printed_stddev": 0.07
+              }
+            }
+          },
+          {
+            "tag": "cli-iq-1-B",
+            "side": "B",
+            "binary_sha256": "8cc83cd81a006f8023e34a08326b0af747998110f76e7b499fc934fd9d3204c4",
+            "version": "gufo version ec31961208de",
+            "background_reserved_GiB": 5.689369201660156,
+            "background_max_process": "dwm",
+            "rows": {
+              "pp2048": {
+                "tokens_per_second": 1544.33,
+                "printed_stddev": 9.47
+              },
+              "pp4096": {
+                "tokens_per_second": 1609.23,
+                "printed_stddev": 13.9
+              },
+              "tg128": {
+                "tokens_per_second": 28.34,
+                "printed_stddev": 0.1
+              }
+            }
+          },
+          {
+            "tag": "cli-iq-2-B",
+            "side": "B",
+            "binary_sha256": "8cc83cd81a006f8023e34a08326b0af747998110f76e7b499fc934fd9d3204c4",
+            "version": "gufo version ec31961208de",
+            "background_reserved_GiB": 5.683265686035156,
+            "background_max_process": "dwm",
+            "rows": {
+              "pp2048": {
+                "tokens_per_second": 1544.72,
+                "printed_stddev": 3.87
+              },
+              "pp4096": {
+                "tokens_per_second": 1608.42,
+                "printed_stddev": 16.89
+              },
+              "tg128": {
+                "tokens_per_second": 28.35,
+                "printed_stddev": 0.09
+              }
+            }
+          },
+          {
+            "tag": "cli-iq-3-A",
+            "side": "A",
+            "binary_sha256": "a3d1f6a7b652adf950b90208972c475930db0f7d5d14a5ca629a6b87710e9b52",
+            "version": "gufo version 0817d23b6974",
+            "background_reserved_GiB": 5.684730529785156,
+            "background_max_process": "dwm",
+            "rows": {
+              "pp2048": {
+                "tokens_per_second": 993.6,
+                "printed_stddev": 1.46
+              },
+              "pp4096": {
+                "tokens_per_second": 1152.16,
+                "printed_stddev": 2.05
+              },
+              "tg128": {
+                "tokens_per_second": 28.36,
+                "printed_stddev": 0.07
+              }
+            }
+          }
+        ],
+        "complete": true,
+        "summary": {
+          "pp2048": {
+            "baseline_mean_tps": 989.62,
+            "candidate_mean_tps": 1544.525,
+            "gain_percent": 56.07253289141288,
+            "baseline_arms": [
+              985.64,
+              993.6
+            ],
+            "candidate_arms": [
+              1544.33,
+              1544.72
+            ]
+          },
+          "pp4096": {
+            "baseline_mean_tps": 1154.835,
+            "candidate_mean_tps": 1608.825,
+            "gain_percent": 39.31210952213953,
+            "baseline_arms": [
+              1157.51,
+              1152.16
+            ],
+            "candidate_arms": [
+              1609.23,
+              1608.42
+            ]
+          },
+          "tg128": {
+            "baseline_mean_tps": 28.285,
+            "candidate_mean_tps": 28.345,
+            "gain_percent": 0.21212656885274406,
+            "baseline_arms": [
+              28.21,
+              28.36
+            ],
+            "candidate_arms": [
+              28.34,
+              28.35
+            ]
+          }
+        }
+      },
+      "q4": {
+        "arms": [
+          {
+            "tag": "cli-q4-0-A",
+            "side": "A",
+            "binary_sha256": "a3d1f6a7b652adf950b90208972c475930db0f7d5d14a5ca629a6b87710e9b52",
+            "version": "gufo version 0817d23b6974",
+            "background_reserved_GiB": 5.692787170410156,
+            "background_max_process": "dwm",
+            "rows": {
+              "pp2048": {
+                "tokens_per_second": 1597.12,
+                "printed_stddev": 7.94
+              },
+              "pp4096": {
+                "tokens_per_second": 1647.04,
+                "printed_stddev": 17.05
+              },
+              "tg128": {
+                "tokens_per_second": 28.66,
+                "printed_stddev": 0.12
+              }
+            }
+          },
+          {
+            "tag": "cli-q4-1-B",
+            "side": "B",
+            "binary_sha256": "8cc83cd81a006f8023e34a08326b0af747998110f76e7b499fc934fd9d3204c4",
+            "version": "gufo version ec31961208de",
+            "background_reserved_GiB": 5.684974670410156,
+            "background_max_process": "dwm",
+            "rows": {
+              "pp2048": {
+                "tokens_per_second": 1594.3,
+                "printed_stddev": 6.23
+              },
+              "pp4096": {
+                "tokens_per_second": 1644.07,
+                "printed_stddev": 13.97
+              },
+              "tg128": {
+                "tokens_per_second": 28.57,
+                "printed_stddev": 0.13
+              }
+            }
+          },
+          {
+            "tag": "cli-q4-2-B",
+            "side": "B",
+            "binary_sha256": "8cc83cd81a006f8023e34a08326b0af747998110f76e7b499fc934fd9d3204c4",
+            "version": "gufo version ec31961208de",
+            "background_reserved_GiB": 5.685218811035156,
+            "background_max_process": "dwm",
+            "rows": {
+              "pp2048": {
+                "tokens_per_second": 1592.28,
+                "printed_stddev": 8.31
+              },
+              "pp4096": {
+                "tokens_per_second": 1647.6,
+                "printed_stddev": 16.81
+              },
+              "tg128": {
+                "tokens_per_second": 28.62,
+                "printed_stddev": 0.11
+              }
+            }
+          },
+          {
+            "tag": "cli-q4-3-A",
+            "side": "A",
+            "binary_sha256": "a3d1f6a7b652adf950b90208972c475930db0f7d5d14a5ca629a6b87710e9b52",
+            "version": "gufo version 0817d23b6974",
+            "background_reserved_GiB": 5.684242248535156,
+            "background_max_process": "dwm",
+            "rows": {
+              "pp2048": {
+                "tokens_per_second": 1603.61,
+                "printed_stddev": 4.06
+              },
+              "pp4096": {
+                "tokens_per_second": 1648.35,
+                "printed_stddev": 10.03
+              },
+              "tg128": {
+                "tokens_per_second": 28.6,
+                "printed_stddev": 0.09
+              }
+            }
+          }
+        ],
+        "complete": true,
+        "summary": {
+          "pp2048": {
+            "baseline_mean_tps": 1600.3649999999998,
+            "candidate_mean_tps": 1593.29,
+            "gain_percent": -0.4420866489831865,
+            "baseline_arms": [
+              1597.12,
+              1603.61
+            ],
+            "candidate_arms": [
+              1594.3,
+              1592.28
+            ]
+          },
+          "pp4096": {
+            "baseline_mean_tps": 1647.695,
+            "candidate_mean_tps": 1645.835,
+            "gain_percent": -0.11288496960905059,
+            "baseline_arms": [
+              1647.04,
+              1648.35
+            ],
+            "candidate_arms": [
+              1644.07,
+              1647.6
+            ]
+          },
+          "tg128": {
+            "baseline_mean_tps": 28.630000000000003,
+            "candidate_mean_tps": 28.595,
+            "gain_percent": -0.12224938875307068,
+            "baseline_arms": [
+              28.66,
+              28.6
+            ],
+            "candidate_arms": [
+              28.57,
+              28.62
+            ]
+          }
+        }
+      }
+    },
+    "http": {
+      "iq": {
+        "arms": [
+          {
+            "tag": "http-iq-0-A",
+            "side": "A",
+            "binary_sha256": "a3d1f6a7b652adf950b90208972c475930db0f7d5d14a5ca629a6b87710e9b52",
+            "version": "gufo version 0817d23b6974",
+            "background_reserved_GiB": 5.693519592285156,
+            "background_max_process": "dwm",
+            "ready_s": 22.840103499998804,
+            "cold_ttft_s": 2.451966500026174,
+            "request_s": 2.9967209000024013,
+            "text_sha256": "522d58f8ccc3fd4e68bbe1fc7dd6ffc1393b749f6e8b17a2eff3e7812e206414",
+            "usage": {
+              "prompt_tokens": 1504,
+              "completion_tokens": 16,
+              "cached_tokens": 0,
+              "draft_tokens": 11,
+              "draft_tokens_accepted": 8
+            },
+            "timings": {
+              "prompt_n": 1504,
+              "prompt_ms": 2325.4444,
+              "prompt_per_token_ms": 1.5461731382978723,
+              "prompt_per_second": 646.7580992261093,
+              "predicted_n": 16,
+              "predicted_ms": 464.36740000000003,
+              "predicted_per_token_ms": 29.022962500000002,
+              "predicted_per_second": 34.455476418025896,
+              "cache_n": 0,
+              "cache_restore_ms": 0,
+              "cache_snapshot_ms": 174.8506,
+              "cache_disk_enqueue_ms": 0,
+              "draft_n": 11,
+              "draft_n_accepted": 8
+            },
+            "stages": {
+              "cache_hit": false,
+              "cache_miss_reason": "no_checkpoint",
+              "cache_common_prefix_tokens": 0,
+              "cache_checkpoint_tokens": 0,
+              "cache_restore_bytes": 0,
+              "cache_snapshot_bytes": 338640692,
+              "cache_disk_queued_bytes": 0,
+              "cache_shared_bytes": 0,
+              "cache_restore_ms": 0,
+              "cache_snapshot_ms": 174.8506,
+              "cache_disk_enqueue_ms": 0,
+              "cache_disk_hit": false,
+              "cache_shared_prefix_snapshots": 0,
+              "cache_shared_prefix_bytes": 0,
+              "cache_shared_prefix_ms": 0,
+              "prefill_tokens": 1504,
+              "prefill_chunks": 2,
+              "active_decode_prefill_chunks": 0,
+              "max_prefill_chunk_tokens": 1497,
+              "queue_depth_at_submit": 1,
+              "client_queue_depth_at_submit": 1,
+              "resident_requests_at_admission": 1,
+              "requested_logical_concurrency": 1,
+              "physical_execution_width": 1,
+              "queue_ms": 10.8864,
+              "prefill_ms": 2325.4444,
+              "decode_ms": 464.36740000000003,
+              "ttft_ms": 2431.1058,
+              "mean_inter_token_ms": 36.296699999999994,
+              "max_inter_token_ms": 158.9,
+              "execution_plan": "serial-c1"
+            }
+          },
+          {
+            "tag": "http-iq-1-B",
+            "side": "B",
+            "binary_sha256": "8cc83cd81a006f8023e34a08326b0af747998110f76e7b499fc934fd9d3204c4",
+            "version": "gufo version ec31961208de",
+            "background_reserved_GiB": 5.685462951660156,
+            "background_max_process": "dwm",
+            "ready_s": 22.301401900011115,
+            "cold_ttft_s": 2.161585699999705,
+            "request_s": 2.7622631999547593,
+            "text_sha256": "b257ced62db93f949f3c461d94e9ba33a8ab53a91df8687cb01e3d1d6c9ca9f9",
+            "usage": {
+              "prompt_tokens": 1504,
+              "completion_tokens": 16,
+              "cached_tokens": 0,
+              "draft_tokens": 11,
+              "draft_tokens_accepted": 7
+            },
+            "timings": {
+              "prompt_n": 1504,
+              "prompt_ms": 2031.9651000000001,
+              "prompt_per_token_ms": 1.351040625,
+              "prompt_per_second": 740.1701928837261,
+              "predicted_n": 16,
+              "predicted_ms": 519.2174,
+              "predicted_per_token_ms": 32.4510875,
+              "predicted_per_second": 30.81560825966156,
+              "cache_n": 0,
+              "cache_restore_ms": 0,
+              "cache_snapshot_ms": 184.6935,
+              "cache_disk_enqueue_ms": 0,
+              "draft_n": 11,
+              "draft_n_accepted": 7
+            },
+            "stages": {
+              "cache_hit": false,
+              "cache_miss_reason": "no_checkpoint",
+              "cache_common_prefix_tokens": 0,
+              "cache_checkpoint_tokens": 0,
+              "cache_restore_bytes": 0,
+              "cache_snapshot_bytes": 338640692,
+              "cache_disk_queued_bytes": 0,
+              "cache_shared_bytes": 0,
+              "cache_restore_ms": 0,
+              "cache_snapshot_ms": 184.6935,
+              "cache_disk_enqueue_ms": 0,
+              "cache_disk_hit": false,
+              "cache_shared_prefix_snapshots": 0,
+              "cache_shared_prefix_bytes": 0,
+              "cache_shared_prefix_ms": 0,
+              "prefill_tokens": 1504,
+              "prefill_chunks": 2,
+              "active_decode_prefill_chunks": 0,
+              "max_prefill_chunk_tokens": 1497,
+              "queue_depth_at_submit": 1,
+              "client_queue_depth_at_submit": 1,
+              "resident_requests_at_admission": 1,
+              "requested_logical_concurrency": 1,
+              "physical_execution_width": 1,
+              "queue_ms": 10.8379,
+              "prefill_ms": 2031.9651000000001,
+              "decode_ms": 519.2174,
+              "ttft_ms": 2146.4461,
+              "mean_inter_token_ms": 40.02228666666667,
+              "max_inter_token_ms": 151.0918,
+              "execution_plan": "serial-c1"
+            }
+          },
+          {
+            "tag": "http-iq-2-B",
+            "side": "B",
+            "binary_sha256": "8cc83cd81a006f8023e34a08326b0af747998110f76e7b499fc934fd9d3204c4",
+            "version": "gufo version ec31961208de",
+            "background_reserved_GiB": 5.686927795410156,
+            "background_max_process": "dwm",
+            "ready_s": 22.288904000015464,
+            "cold_ttft_s": 1.8345274000312202,
+            "request_s": 2.3954100000555627,
+            "text_sha256": "b257ced62db93f949f3c461d94e9ba33a8ab53a91df8687cb01e3d1d6c9ca9f9",
+            "usage": {
+              "prompt_tokens": 1504,
+              "completion_tokens": 16,
+              "cached_tokens": 0,
+              "draft_tokens": 11,
+              "draft_tokens_accepted": 7
+            },
+            "timings": {
+              "prompt_n": 1504,
+              "prompt_ms": 1732.3436,
+              "prompt_per_token_ms": 1.1518242021276595,
+              "prompt_per_second": 868.1880430648978,
+              "predicted_n": 16,
+              "predicted_ms": 502.2214000000001,
+              "predicted_per_token_ms": 31.388837500000005,
+              "predicted_per_second": 31.858459237300515,
+              "cache_n": 0,
+              "cache_restore_ms": 0,
+              "cache_snapshot_ms": 134.185,
+              "cache_disk_enqueue_ms": 0,
+              "draft_n": 11,
+              "draft_n_accepted": 7
+            },
+            "stages": {
+              "cache_hit": false,
+              "cache_miss_reason": "no_checkpoint",
+              "cache_common_prefix_tokens": 0,
+              "cache_checkpoint_tokens": 0,
+              "cache_restore_bytes": 0,
+              "cache_snapshot_bytes": 338640692,
+              "cache_disk_queued_bytes": 0,
+              "cache_shared_bytes": 0,
+              "cache_restore_ms": 0,
+              "cache_snapshot_ms": 134.185,
+              "cache_disk_enqueue_ms": 0,
+              "cache_disk_hit": false,
+              "cache_shared_prefix_snapshots": 0,
+              "cache_shared_prefix_bytes": 0,
+              "cache_shared_prefix_ms": 0,
+              "prefill_tokens": 1504,
+              "prefill_chunks": 2,
+              "active_decode_prefill_chunks": 0,
+              "max_prefill_chunk_tokens": 1497,
+              "queue_depth_at_submit": 1,
+              "client_queue_depth_at_submit": 1,
+              "resident_requests_at_admission": 1,
+              "requested_logical_concurrency": 1,
+              "physical_execution_width": 1,
+              "queue_ms": 9.7511,
+              "prefill_ms": 1732.3436,
+              "decode_ms": 502.2214000000001,
+              "ttft_ms": 1818.3687,
+              "mean_inter_token_ms": 37.34448666666667,
+              "max_inter_token_ms": 124.4436,
+              "execution_plan": "serial-c1"
+            }
+          },
+          {
+            "tag": "http-iq-3-A",
+            "side": "A",
+            "binary_sha256": "a3d1f6a7b652adf950b90208972c475930db0f7d5d14a5ca629a6b87710e9b52",
+            "version": "gufo version 0817d23b6974",
+            "background_reserved_GiB": 5.685462951660156,
+            "background_max_process": "dwm",
+            "ready_s": 22.282913099974394,
+            "cold_ttft_s": 2.403925499995239,
+            "request_s": 2.917738099989947,
+            "text_sha256": "522d58f8ccc3fd4e68bbe1fc7dd6ffc1393b749f6e8b17a2eff3e7812e206414",
+            "usage": {
+              "prompt_tokens": 1504,
+              "completion_tokens": 16,
+              "cached_tokens": 0,
+              "draft_tokens": 11,
+              "draft_tokens_accepted": 8
+            },
+            "timings": {
+              "prompt_n": 1504,
+              "prompt_ms": 2309.0006,
+              "prompt_per_token_ms": 1.5352397606382977,
+              "prompt_per_second": 651.3640576793267,
+              "predicted_n": 16,
+              "predicted_ms": 460.5884,
+              "predicted_per_token_ms": 28.786775,
+              "predicted_per_second": 34.73817403998885,
+              "cache_n": 0,
+              "cache_restore_ms": 0,
+              "cache_snapshot_ms": 136.5792,
+              "cache_disk_enqueue_ms": 0,
+              "draft_n": 11,
+              "draft_n_accepted": 8
+            },
+            "stages": {
+              "cache_hit": false,
+              "cache_miss_reason": "no_checkpoint",
+              "cache_common_prefix_tokens": 0,
+              "cache_checkpoint_tokens": 0,
+              "cache_restore_bytes": 0,
+              "cache_snapshot_bytes": 338640692,
+              "cache_disk_queued_bytes": 0,
+              "cache_shared_bytes": 0,
+              "cache_restore_ms": 0,
+              "cache_snapshot_ms": 136.5792,
+              "cache_disk_enqueue_ms": 0,
+              "cache_disk_hit": false,
+              "cache_shared_prefix_snapshots": 0,
+              "cache_shared_prefix_bytes": 0,
+              "cache_shared_prefix_ms": 0,
+              "prefill_tokens": 1504,
+              "prefill_chunks": 2,
+              "active_decode_prefill_chunks": 0,
+              "max_prefill_chunk_tokens": 1497,
+              "queue_depth_at_submit": 1,
+              "client_queue_depth_at_submit": 1,
+              "resident_requests_at_admission": 1,
+              "requested_logical_concurrency": 1,
+              "physical_execution_width": 1,
+              "queue_ms": 9.6054,
+              "prefill_ms": 2309.0006,
+              "decode_ms": 460.5884,
+              "ttft_ms": 2402.3698,
+              "mean_inter_token_ms": 34.225813333333335,
+              "max_inter_token_ms": 131.1799,
+              "execution_plan": "serial-c1"
+            }
+          }
+        ],
+        "complete": true,
+        "summary": {
+          "means": {
+            "A": {
+              "ready_s": 22.5615082999866,
+              "cold_ttft_s": 2.4279460000107065,
+              "request_s": 2.957229499996174
+            },
+            "B": {
+              "ready_s": 22.29515295001329,
+              "cold_ttft_s": 1.9980565500154626,
+              "request_s": 2.578836600005161
+            }
+          },
+          "ttft_reduction_percent": 17.705890081301156,
+          "request_reduction_percent": 12.795520266232385,
+          "all_text_hashes_equal": false,
+          "completion_counts": [
+            16,
+            16,
+            16,
+            16
+          ],
+          "prompt_counts": [
+            1504,
+            1504,
+            1504,
+            1504
+          ],
+          "cached_counts": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "text_replays_within_each_build": true
+        }
+      },
+      "q4": {
+        "arms": [
+          {
+            "tag": "http-q4-0-A",
+            "side": "A",
+            "binary_sha256": "a3d1f6a7b652adf950b90208972c475930db0f7d5d14a5ca629a6b87710e9b52",
+            "version": "gufo version 0817d23b6974",
+            "background_reserved_GiB": 5.686927795410156,
+            "background_max_process": "dwm",
+            "ready_s": 26.31561709998641,
+            "cold_ttft_s": 1.7824758000206202,
+            "request_s": 2.3132788999937475,
+            "text_sha256": "e6ce379aad6a807f666f5dcfe566b8996c2187d2e139222ce1bcc07a553e6a6e",
+            "usage": {
+              "prompt_tokens": 1504,
+              "completion_tokens": 16,
+              "cached_tokens": 0,
+              "draft_tokens": 12,
+              "draft_tokens_accepted": 8
+            },
+            "timings": {
+              "prompt_n": 1504,
+              "prompt_ms": 1678.6372,
+              "prompt_per_token_ms": 1.116115159574468,
+              "prompt_per_second": 895.964893426644,
+              "predicted_n": 16,
+              "predicted_ms": 465.5996,
+              "predicted_per_token_ms": 29.099975,
+              "predicted_per_second": 34.36429069097138,
+              "cache_n": 0,
+              "cache_restore_ms": 0,
+              "cache_snapshot_ms": 145.1717,
+              "cache_disk_enqueue_ms": 0,
+              "draft_n": 12,
+              "draft_n_accepted": 8
+            },
+            "stages": {
+              "cache_hit": false,
+              "cache_miss_reason": "no_checkpoint",
+              "cache_common_prefix_tokens": 0,
+              "cache_checkpoint_tokens": 0,
+              "cache_restore_bytes": 0,
+              "cache_snapshot_bytes": 338640692,
+              "cache_disk_queued_bytes": 0,
+              "cache_shared_bytes": 0,
+              "cache_restore_ms": 0,
+              "cache_snapshot_ms": 145.1717,
+              "cache_disk_enqueue_ms": 0,
+              "cache_disk_hit": false,
+              "cache_shared_prefix_snapshots": 0,
+              "cache_shared_prefix_bytes": 0,
+              "cache_shared_prefix_ms": 0,
+              "prefill_tokens": 1504,
+              "prefill_chunks": 2,
+              "active_decode_prefill_chunks": 0,
+              "max_prefill_chunk_tokens": 1497,
+              "queue_depth_at_submit": 1,
+              "client_queue_depth_at_submit": 1,
+              "resident_requests_at_admission": 1,
+              "requested_logical_concurrency": 1,
+              "physical_execution_width": 1,
+              "queue_ms": 9.5447,
+              "prefill_ms": 1678.6372,
+              "decode_ms": 465.5996,
+              "ttft_ms": 1768.4152,
+              "mean_inter_token_ms": 35.36887333333333,
+              "max_inter_token_ms": 160.2533,
+              "execution_plan": "serial-c1"
+            }
+          },
+          {
+            "tag": "http-q4-1-B",
+            "side": "B",
+            "binary_sha256": "8cc83cd81a006f8023e34a08326b0af747998110f76e7b499fc934fd9d3204c4",
+            "version": "gufo version ec31961208de",
+            "background_reserved_GiB": 5.683998107910156,
+            "background_max_process": "dwm",
+            "ready_s": 25.736222699983045,
+            "cold_ttft_s": 1.791621899988968,
+            "request_s": 2.3170564000029117,
+            "text_sha256": "e6ce379aad6a807f666f5dcfe566b8996c2187d2e139222ce1bcc07a553e6a6e",
+            "usage": {
+              "prompt_tokens": 1504,
+              "completion_tokens": 16,
+              "cached_tokens": 0,
+              "draft_tokens": 12,
+              "draft_tokens_accepted": 8
+            },
+            "timings": {
+              "prompt_n": 1504,
+              "prompt_ms": 1684.2246,
+              "prompt_per_token_ms": 1.1198301861702127,
+              "prompt_per_second": 892.992537931105,
+              "predicted_n": 16,
+              "predicted_ms": 460.7268,
+              "predicted_per_token_ms": 28.795425,
+              "predicted_per_second": 34.72773886824035,
+              "cache_n": 0,
+              "cache_restore_ms": 0,
+              "cache_snapshot_ms": 148.1301,
+              "cache_disk_enqueue_ms": 0,
+              "draft_n": 12,
+              "draft_n_accepted": 8
+            },
+            "stages": {
+              "cache_hit": false,
+              "cache_miss_reason": "no_checkpoint",
+              "cache_common_prefix_tokens": 0,
+              "cache_checkpoint_tokens": 0,
+              "cache_restore_bytes": 0,
+              "cache_snapshot_bytes": 338640692,
+              "cache_disk_queued_bytes": 0,
+              "cache_shared_bytes": 0,
+              "cache_restore_ms": 0,
+              "cache_snapshot_ms": 148.1301,
+              "cache_disk_enqueue_ms": 0,
+              "cache_disk_hit": false,
+              "cache_shared_prefix_snapshots": 0,
+              "cache_shared_prefix_bytes": 0,
+              "cache_shared_prefix_ms": 0,
+              "prefill_tokens": 1504,
+              "prefill_chunks": 2,
+              "active_decode_prefill_chunks": 0,
+              "max_prefill_chunk_tokens": 1497,
+              "queue_depth_at_submit": 1,
+              "client_queue_depth_at_submit": 1,
+              "resident_requests_at_admission": 1,
+              "requested_logical_concurrency": 1,
+              "physical_execution_width": 1,
+              "queue_ms": 9.1384,
+              "prefill_ms": 1684.2246,
+              "decode_ms": 460.7268,
+              "ttft_ms": 1777.1146,
+              "mean_inter_token_ms": 35.00568666666666,
+              "max_inter_token_ms": 157.8412,
+              "execution_plan": "serial-c1"
+            }
+          },
+          {
+            "tag": "http-q4-2-B",
+            "side": "B",
+            "binary_sha256": "8cc83cd81a006f8023e34a08326b0af747998110f76e7b499fc934fd9d3204c4",
+            "version": "gufo version ec31961208de",
+            "background_reserved_GiB": 5.684486389160156,
+            "background_max_process": "dwm",
+            "ready_s": 25.755782799969893,
+            "cold_ttft_s": 1.7821320000221021,
+            "request_s": 2.29791700001806,
+            "text_sha256": "e6ce379aad6a807f666f5dcfe566b8996c2187d2e139222ce1bcc07a553e6a6e",
+            "usage": {
+              "prompt_tokens": 1504,
+              "completion_tokens": 16,
+              "cached_tokens": 0,
+              "draft_tokens": 12,
+              "draft_tokens_accepted": 8
+            },
+            "timings": {
+              "prompt_n": 1504,
+              "prompt_ms": 1673.0747,
+              "prompt_per_token_ms": 1.112416688829787,
+              "prompt_per_second": 898.9437231941886,
+              "predicted_n": 16,
+              "predicted_ms": 460.52219999999994,
+              "predicted_per_token_ms": 28.782637499999996,
+              "predicted_per_second": 34.74316764750972,
+              "cache_n": 0,
+              "cache_restore_ms": 0,
+              "cache_snapshot_ms": 140.1959,
+              "cache_disk_enqueue_ms": 0,
+              "draft_n": 12,
+              "draft_n_accepted": 8
+            },
+            "stages": {
+              "cache_hit": false,
+              "cache_miss_reason": "no_checkpoint",
+              "cache_common_prefix_tokens": 0,
+              "cache_checkpoint_tokens": 0,
+              "cache_restore_bytes": 0,
+              "cache_snapshot_bytes": 338640692,
+              "cache_disk_queued_bytes": 0,
+              "cache_shared_bytes": 0,
+              "cache_restore_ms": 0,
+              "cache_snapshot_ms": 140.1959,
+              "cache_disk_enqueue_ms": 0,
+              "cache_disk_hit": false,
+              "cache_shared_prefix_snapshots": 0,
+              "cache_shared_prefix_bytes": 0,
+              "cache_shared_prefix_ms": 0,
+              "prefill_tokens": 1504,
+              "prefill_chunks": 2,
+              "active_decode_prefill_chunks": 0,
+              "max_prefill_chunk_tokens": 1497,
+              "queue_depth_at_submit": 1,
+              "client_queue_depth_at_submit": 1,
+              "resident_requests_at_admission": 1,
+              "requested_logical_concurrency": 1,
+              "physical_execution_width": 1,
+              "queue_ms": 9.0434,
+              "prefill_ms": 1673.0747,
+              "decode_ms": 460.52219999999994,
+              "ttft_ms": 1767.3761,
+              "mean_inter_token_ms": 34.36516666666667,
+              "max_inter_token_ms": 147.9871,
+              "execution_plan": "serial-c1"
+            }
+          },
+          {
+            "tag": "http-q4-3-A",
+            "side": "A",
+            "binary_sha256": "a3d1f6a7b652adf950b90208972c475930db0f7d5d14a5ca629a6b87710e9b52",
+            "version": "gufo version 0817d23b6974",
+            "background_reserved_GiB": 5.682533264160156,
+            "background_max_process": "dwm",
+            "ready_s": 25.8774698000052,
+            "cold_ttft_s": 1.7751595999579877,
+            "request_s": 2.303983599995263,
+            "text_sha256": "e6ce379aad6a807f666f5dcfe566b8996c2187d2e139222ce1bcc07a553e6a6e",
+            "usage": {
+              "prompt_tokens": 1504,
+              "completion_tokens": 16,
+              "cached_tokens": 0,
+              "draft_tokens": 12,
+              "draft_tokens_accepted": 8
+            },
+            "timings": {
+              "prompt_n": 1504,
+              "prompt_ms": 1683.1957,
+              "prompt_per_token_ms": 1.1191460771276596,
+              "prompt_per_second": 893.5384043578533,
+              "predicted_n": 16,
+              "predicted_ms": 461.2441,
+              "predicted_per_token_ms": 28.82775625,
+              "predicted_per_second": 34.68879059916431,
+              "cache_n": 0,
+              "cache_restore_ms": 0,
+              "cache_snapshot_ms": 148.2977,
+              "cache_disk_enqueue_ms": 0,
+              "draft_n": 12,
+              "draft_n_accepted": 8
+            },
+            "stages": {
+              "cache_hit": false,
+              "cache_miss_reason": "no_checkpoint",
+              "cache_common_prefix_tokens": 0,
+              "cache_checkpoint_tokens": 0,
+              "cache_restore_bytes": 0,
+              "cache_snapshot_bytes": 338640692,
+              "cache_disk_queued_bytes": 0,
+              "cache_shared_bytes": 0,
+              "cache_restore_ms": 0,
+              "cache_snapshot_ms": 148.2977,
+              "cache_disk_enqueue_ms": 0,
+              "cache_disk_hit": false,
+              "cache_shared_prefix_snapshots": 0,
+              "cache_shared_prefix_bytes": 0,
+              "cache_shared_prefix_ms": 0,
+              "prefill_tokens": 1504,
+              "prefill_chunks": 2,
+              "active_decode_prefill_chunks": 0,
+              "max_prefill_chunk_tokens": 1497,
+              "queue_depth_at_submit": 1,
+              "client_queue_depth_at_submit": 1,
+              "resident_requests_at_admission": 1,
+              "requested_logical_concurrency": 1,
+              "physical_execution_width": 1,
+              "queue_ms": 9.5493,
+              "prefill_ms": 1683.1957,
+              "decode_ms": 461.2441,
+              "ttft_ms": 1773.7559,
+              "mean_inter_token_ms": 35.236380000000004,
+              "max_inter_token_ms": 160.7412,
+              "execution_plan": "serial-c1"
+            }
+          }
+        ],
+        "complete": true,
+        "summary": {
+          "means": {
+            "A": {
+              "ready_s": 26.096543449995806,
+              "cold_ttft_s": 1.778817699989304,
+              "request_s": 2.308631249994505
+            },
+            "B": {
+              "ready_s": 25.74600274997647,
+              "cold_ttft_s": 1.786876950005535,
+              "request_s": 2.307486700010486
+            }
+          },
+          "ttft_reduction_percent": -0.4530677885811185,
+          "request_reduction_percent": 0.04957699433471019,
+          "all_text_hashes_equal": true,
+          "completion_counts": [
+            16,
+            16,
+            16,
+            16
+          ],
+          "prompt_counts": [
+            1504,
+            1504,
+            1504,
+            1504
+          ],
+          "cached_counts": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "text_replays_within_each_build": true
+        }
+      }
+    },
+    "settings": {
+      "cli": {
+        "speculative": "off",
+        "context": 4097,
+        "depth": 0,
+        "prompts": [
+          2048,
+          4096
+        ],
+        "generation": 128,
+        "repetitions_per_arm": 3,
+        "temperature": 0,
+        "seed": 459,
+        "loading_excluded": true,
+        "shapes_warmed": true
+      },
+      "http": {
+        "context": 8192,
+        "sessions": 1,
+        "speculative": "mtp",
+        "draft_tokens": 7,
+        "mtp_draft_vocab": "full",
+        "fresh_process_per_arm": true,
+        "first_request": true,
+        "request_without_prompt": {
+          "model": "gufo",
+          "max_tokens": 16,
+          "temperature": 0,
+          "seed": 459,
+          "chat_template_kwargs": {
+            "enable_thinking": false
+          },
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "prompt": {
+          "prefix": "Explain the following passage briefly.\n",
+          "repetitions": 45,
+          "paragraph": "Virtual memory maps pages to physical storage. An inference engine routes tokens to experts and reuses weight tiles across rows. Prompt processing and token generation have different costs.\n",
+          "sha256": "943175ef45a0ca9eb475664631d76456e028b0408be2ee9ce7d2f70132eedb45",
+          "tokens": 1504
+        }
+      }
+    },
+    "background_reservations_GiB": {
+      "min": 5.682533264160156,
+      "max": 5.693519592285156,
+      "largest_processes": [
+        "dwm"
+      ],
+      "note": "Windows per-process reserved dedicated bytes; not a measurement of physical residency. Firefox earlier ~17 GiB allocation is absent."
+    },
+    "claim_limits": [
+      "IQ generated text differs between builds, but repeats within each build; total-request/decode timings are not identical-output workload comparisons.",
+      "Only two arms per build and mode; IQ cold TTFT varies appreciably.",
+      "C1 only; no broad serving-latency, concurrency or Linux qualification.",
+      "A measured speed gain does not override IQ numerical gate FAIL."
+    ]
+  }
+}

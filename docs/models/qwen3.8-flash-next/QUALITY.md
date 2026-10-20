@@ -20,6 +20,33 @@ the same build, request budget, capacity and sampling configuration; live cost
 timings only steer greedy decoding. Draft sampling uses the full Q8 head's
 top 64 logits; upstream draft-sampler equivalence is not claimed.
 
+## Experimental IQ F16 prefill
+
+October 19, 2026, native Windows/gfx1151: candidate `ec31961208de` versus
+`0817d23b6974`, same TheRock 10.0.0/clang 23 and artifacts. The existing
+qualification gate reports **FAIL for UD-IQ4_XS** and **PASS for UD-Q4_K_XL**.
+Both pass four CPU contracts, eleven GPU operator tests and all four model/state
+suites. Q4 retains all 999 complete vocabulary rows and perplexities exactly.
+
+IQ deliberately changes routed activation arithmetic from INT8 quantization
+to F16. All 999 baseline logit rows change; normal-prefill fixture perplexity
+increases **3.3522%**, from 1.2427840354 to 1.2844440694, and 314/324 top-1
+predictions agree. AR/MTP halves are byte-identical within the candidate.
+These repeated-pattern continuation fixtures do not establish broad capability.
+
+Independent F64 operators pass their unchanged limits, including real expert
+dimensions and tiny/ragged batches. On three short matched CPU-reference
+fixtures, top-1 agreement improves from 51/52 to 52/52 and mean KL from
+0.00439308 to 0.00250885; maximum KL increases from 0.03179 to 0.03374.
+Printed reference KL values have five decimal places. These short fixtures
+do not cover the larger 2K/4K continuation differences.
+
+The candidate remains experimental. No golden or tolerance was changed, and
+the model has no declared numerical acceptance limits for this transition.
+Linux, broad natural-text/teacher qualification and image qualification remain
+unrun. [Scope, commands and interpretation](../../plans/iq-experts-prefill.md)
+and [compact identities/results](artifacts/iq-prefill-f16-candidate.json).
+
 ## Vision
 
 September 29 Windows image-prefix cache qualification: a text prefix followed

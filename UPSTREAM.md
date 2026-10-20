@@ -41,7 +41,7 @@ Use this entry format:
 
 - Source: [johandevlabs/gufo-iq4_xs@88cd08069db1d6058f3a95816279c185ae765eb4](https://github.com/johandevlabs/gufo-iq4_xs/commit/88cd08069db1d6058f3a95816279c185ae765eb4),
   adapted on the separate IQ F16 support below.
-- Local: commit introducing this entry.
+- Local: `ec319612`.
 - Adaptation: instantiate paired IQ3_S/IQ4_XS gate/up using the fork's current
   64/128-token maps and fused SwiGLU epilogue. Preserve Q4/Q5 cache handling,
   the down path and decode dispatch. No other source-branch changes imported.
@@ -51,10 +51,16 @@ Use this entry format:
   matches separate F16 output under the unchanged signed-zero convention,
   with byte-exact replay. All 27 routed variants have zero scratch/register
   spills; pre-existing variants retain their resource counts. Ten resource
-  fixtures pass. Full-model checks remain in progress; Linux is deferred.
+  fixtures pass. Both quants pass all required Windows operator/state checks;
+  Q4 retains all 999 vocabulary rows exactly. IQ fails the unchanged exact
+  numerical gate, with normal-prefill fixture perplexity +3.3522% and 10/324
+  top-1 changes. Exploratory native IQ prefill gains are +56.07% pp2048 and
+  +39.31% pp4096; matched C1 cold TTFT falls 17.71%, with changed IQ output
+  text. These timing results do not accept the numerical transition. Linux
+  is deferred.
   [Evidence and remaining gates](docs/plans/iq-experts-prefill.md).
-- Status: experimental candidate; numerical quality and full-model performance
-  are not yet qualified.
+- Status: experimental candidate; IQ numerical quality is not qualified or
+  promoted. Performance cannot override the failed numerical gate.
 
 ### 2026-10-19 — IQ routed-expert F16 prefill candidate
 
@@ -72,8 +78,9 @@ Use this entry format:
   including 24 IQ cases under unchanged limits. All 23 compiled routed
   variants have zero scratch/register spills; all 512 device IQ3_S grid
   entries match the independent CPU decoder. Formatting, documentation,
-  dependency checks and ten resource-parser tests pass. Full-model checks
-  remain in progress; Linux is unrun.
+  dependency checks and ten resource-parser tests pass. Combined with paired
+  gate/up above, both quants pass Windows functional/state checks; Q4 exact
+  qualification passes and IQ exact qualification fails. Linux is unrun.
   [Criteria and evidence](docs/plans/iq-experts-prefill.md).
 - Status: experimental candidate; intentional IQ prefill arithmetic change
   is not yet qualified or promoted.

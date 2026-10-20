@@ -4,6 +4,40 @@ Baseline: `0817d23b697460626d9da2bcb815b1a14ac1922c`, native Windows
 gfx1151, TheRock 10.0.0 / clang 23. This is an experimental implementation
 record, not a claim that the new arithmetic is qualified.
 
+Code candidate: `ec31961208defb3ec2a941c5d003129ab3e4ee1a` (separate IQ
+support `42274ba3`, then paired gate/up `ec319612`). Q4_K_XL qualification
+passes; IQ qualification fails the unchanged exact-logit gate. Both formats
+pass all required Windows functional/operator/state checks. Keep this on the
+experimental branch; no production promotion or tolerance change is implied.
+
+## Investigation corrections
+
+The original root report identifies the dispatch gap correctly: the identical
+1,224 tensor names/shapes give 48 eligible Q4 layers and zero eligible IQ
+layers at the baseline. Several supporting claims need correction:
+
+- The IQ fallback already uses INT8 WMMA on gfx1151. This is a difference in
+  staging, activation precision and tile reuse, not missing matrix-core use.
+- `ExpertMatrixRows` is true for every prefill width, including one token;
+  the 32-row cutoff applies outside prefill. The routed readers are
+  `RoutedF16RowBytes` and the tile staging code, rather than generic
+  `RowElement`/`RowBytes`.
+- IQ expert storage is **55.432129 GiB**, versus **71.728516 GiB** for Q4.
+  The report's 69.78 GiB IQ estimate used incorrect IQ3_S geometry in a
+  temporary inventory helper: 110 bytes represent 256 weights, not 32.
+  The nominal active-expert byte estimate remains 23% lower for IQ, but
+  that alone does not explain MTP throughput.
+- IQ4_NL down-projection K=640 already fits the existing 64-weight stages
+  as pairs of 32-weight blocks; a new K tile is unnecessary.
+- The original HTTP rows differed in context and MTP vocabulary settings,
+  and streamed chunk counts are not completion-token counts. They establish
+  neither matched latency nor matched decode throughput.
+
+Official PR #570 was closed unmerged. The two pinned reference commits below
+provide the narrower prefill implementation; the source branch's broader
+decode/loading/history changes are excluded. Existing selected #571
+adaptations do not mean its complete upstream commit is an ancestor.
+
 ## Scope and sequence
 
 The local UD-IQ4_XS checkpoint has 43 IQ3_S/IQ4_NL gate-up/down layer
@@ -69,8 +103,7 @@ Raw model identities, captures and qualification records: ignored
 - Three baseline CPU-oracle fixtures retain 52 complete GPU vocabulary rows:
   51/52 top-1 matches, mean KL 0.00439308 and maximum KL 0.03179 (printed
   per-row values have five decimal places). These are baseline measurements,
-  not candidate quality evidence. Paired kernels and model qualification are
-  still pending.
+  not candidate quality evidence.
 
 ## Stage 2: paired IQ gate/up
 
@@ -82,7 +115,170 @@ Raw model identities, captures and qualification records: ignored
   variants, and its ten fixtures pass.
 - Windows remains the priority. The user has WSL available but considers
   Linux validation low priority; Linux checks are deferred, not passed.
-- Baseline teacher-forced captures complete. The first baseline normal-prefill
-  capture made no progress before its first vocabulary row and was stopped
-  after several minutes. Its incomplete capture is retained. A fresh isolated
-  retry is in progress; no candidate numerical mismatch is inferred from it.
+- One initial baseline normal-prefill attempt was stopped after its visible
+  output file stayed empty for several minutes; that attempt overlapped an
+  operator run initially. Its incomplete record is retained. A zero visible
+  file size is insufficient evidence of a stall: a later serial Q4 capture
+  also showed zero until near completion, then passed in 197 seconds. No
+  definitive cause is assigned to the stopped attempt.
+- The isolated IQ retry and complete runner-managed IQ baseline retain the
+  identical 324-row file SHA-256
+  `943e7bc22df220ad1b48799d8117e00b8adbcca8c330961313155218293ce210`.
+  All subsequent GPU/model jobs run serially.
+
+## Full-model qualification
+
+Native Windows/gfx1151, TheRock 10.0.0/clang 23, matched GGUF shards, shared
+Q8_0 MTP sidecars, corpus, tokenizer, seed 459 and schedules `1:2,4,8:p8`.
+The plan selects arithmetic, prefill and state, with no uncovered inference
+source paths. Both records use distinct retained binaries and no control or
+mismatch overrides. The runner marks the candidate checkout dirty solely
+because the original root report is untracked; tracked source matches the
+candidate commit.
+
+Both formats pass fresh native builds, four CPU contracts, eleven GPU
+operator tests and all four model/state executables. Coverage includes
+prefill chunk boundaries and tiny tails, graph replay, private C2/C4/C6/C8
+state/RNG, fresh loads, 105 rollback prefixes, snapshots, sampled rejection
+and residual correction, 23 serving sampler strategies, EOS, budgets, stops,
+cancellation and cache replay. Production resource checks cover all 70
+required gfx1151 kernels with zero failures. Linux remains deferred.
+
+| Matched check | UD-IQ4_XS | UD-Q4_K_XL |
+| --- | --- | --- |
+| Runner verdict | **FAIL**, exact numerical comparators differ | **PASS** |
+| Teacher-forced full-logit rows | 675/675 differ | 675/675 exact |
+| Normal-prefill full-logit rows | 324/324 differ, all finite | 324/324 exact |
+| Normal-prefill top-1 matches to baseline | 314/324 | 324/324 |
+| Normal-prefill perplexity | 1.2427840354 -> 1.2844440694 (**+3.3522%**) | 1.1515802547, exact |
+| Decode/verify fixture perplexity | 21.579505 -> 21.428664 | 22.829414, exact |
+| p8 fixture perplexity | 21.002209 -> 21.069965 | 21.998551, exact |
+
+The 324-row normal-prefill fixture covers three repeated text/code patterns,
+AR/MTP, six prefix lengths through 32K and eight teacher-forced continuations
+after each prefix (288 labels). AR and MTP capture halves are byte-identical
+within each candidate; they are not independent quality samples. IQ mean
+KL(baseline || candidate) is 0.0280697, maximum 1.43667; maximum full-logit
+RMSE is 1.45578. The largest changes occur in prose continuations after 2K
+and 4K prefill. These are measured regression fixtures, not broad capability
+or original-checkpoint accuracy scores.
+
+All three IQ teacher-forced schedules begin with a prefill call, including
+the initial one-token prefix, so changed hashes in the decode schedules do
+not imply that decode kernels were edited. F16 prefill changes the starting
+state subsequently consumed by the unchanged decode/verification paths.
+Passing state checks does not accept this numerical transition. The current
+declaration has no model-owned numerical limits for it; none were invented
+or relaxed after seeing these results.
+
+## Independent CPU reference
+
+Three fixed prose/code prompts, batch 64 and context 4096, compare all 52
+GPU prompt-prefill vocabulary rows with the unchanged CPU `ReferenceModel`
+using the same quantized GGUF and token histories. Recomputed CPU top-1 IDs
+are unchanged across the baseline and candidate builds.
+
+| GPU versus independent CPU formulas | Baseline | Candidate |
+| --- | ---: | ---: |
+| Top-1 agreement | 51/52 | 52/52 |
+| Mean KL(CPU || GPU) | 0.00439308 | 0.00250885 |
+| Maximum KL | 0.03179 | 0.03374 |
+
+The probe prints KL to five decimals. Mean agreement improves, while its
+worst row worsens slightly. This is an independent short-prompt arithmetic
+check against the quantized checkpoint, not an original unquantized teacher
+or a substitute for a justified deep-context numerical policy. It does not
+resolve the measured repetitive-continuation perplexity increase.
+
+## Exploratory production timings
+
+These measurements do not override IQ's failed exact numerical gate and are
+not promoted into `BENCHMARKS.md`. Native release binaries use the same
+TheRock/clang and model artifacts as the qualification records. Firefox's
+earlier roughly 17 GiB GPU reservation is absent; each timing arm records
+the remaining background process reservations separately.
+
+CLI: AR, depth zero, pp2048/pp4096/tg128, context capacity 4097, temperature
+zero, seed 459, no speculation or MTP sidecar. Each model runs ABBA with a
+fresh process per arm, warmed benchmark shapes and three timed repetitions
+per shape. Values below average the two arm means per build; model loading
+is excluded. Raw logs retain each arm's printed standard deviation.
+
+| Model / workload | Baseline tok/s | Candidate tok/s | Change |
+| --- | ---: | ---: | ---: |
+| IQ pp2048 | 989.620 | 1544.525 | **+56.07%** |
+| IQ pp4096 | 1154.835 | 1608.825 | **+39.31%** |
+| IQ tg128 | 28.285 | 28.345 | +0.21% |
+| Q4 pp2048 | 1600.365 | 1593.290 | -0.44% |
+| Q4 pp4096 | 1647.695 | 1645.835 | -0.11% |
+| Q4 tg128 | 28.630 | 28.595 | -0.12% |
+
+The IQ pp2048 arm means are 985.64/993.60 baseline and 1544.33/1544.72
+candidate. Q4's small changes and IQ decode movement do not establish
+meaningful gains or regressions. IQ now runs within about 3% of the Q4
+candidate at pp2048 and 2% at pp4096. This closes most of the measured
+prefill gap without a persistent expanded expert copy or decode changes.
+
+HTTP: separate fresh C1 server per ABBA arm, context 8192, shared Q8_0 MTP,
+full draft vocabulary, seven-draft ceiling, greedy seed 459, thinking disabled.
+Every request processes the same 1504-token prompt and emits 16 actual tokens;
+terminal usage and timings both confirm zero cached prompt tokens. The
+retained JSON includes a reconstructable prompt and its SHA-256.
+
+| Model / scope | Baseline mean | Candidate mean | Change |
+| --- | ---: | ---: | ---: |
+| IQ cold TTFT | 2.428 s | 1.998 s | **-17.71%** |
+| IQ complete request | 2.957 s | 2.579 s | -12.80% |
+| IQ launch to ready | 22.562 s | 22.295 s | -1.18% |
+| Q4 cold TTFT | 1.779 s | 1.787 s | +0.45% |
+| Q4 complete request | 2.309 s | 2.307 s | -0.05% |
+| Q4 launch to ready | 26.097 s | 25.746 s | -1.34% |
+
+IQ TTFT arms are 2.452/2.404 s baseline and 2.162/1.835 s
+candidate. Both candidate arms improve, but this short cold-request campaign
+does not establish a general serving-latency guarantee. IQ's generated text
+differs between builds and repeats within each build; complete-request and
+decode times therefore do not compare identical output work. Q4 text hashes
+match across all four arms. Startup changes are small and unqualified.
+Background process reservations span only 5.6825-5.6935 GiB across all 16
+CLI/HTTP arms, led by DWM at roughly 4.74 GiB. These Windows counters report
+reserved dedicated bytes, not physical residency. No other model/GPU tests
+run during timing, and no benchmark-owned process remains running afterward.
+
+## Reproduction and decision
+
+[Compact identities, checks, numerical comparisons and timing arms](../models/qwen3.8-flash-next/artifacts/iq-prefill-f16-candidate.json)
+retain full binary/model/sidecar/corpus hashes and actual toolchain identity.
+The diagnostic fingerprint's compiler/driver strings are Windows defaults;
+they are not substituted for the separately recorded TheRock/clang identity.
+Full logs, raw logits and command records remain under ignored
+`artifacts/iq-prefill/`; build/operator logs are in `build/iq-prefill/`.
+Build and record from checkouts at the pinned baseline and code-candidate
+commits above; a later documentation commit is not this plan's head revision.
+
+```powershell
+python tools/models/qualify.py plan --base 0817d23b697460626d9da2bcb815b1a14ac1922c --head ec31961208defb3ec2a941c5d003129ab3e4ee1a --format json --output artifacts/iq-prefill/plan.json
+# Run serially for IQ and Q4, with the corresponding first shard and sidecar.
+python tools/models/qualify.py record --model qwen3.8-flash-next --side baseline --plan artifacts/iq-prefill/plan.json --repo "$BASE_REPO" --gufo "$BASE_GUFO" --tool "session_test=$BASE_SESSION_TEST" --file "gguf=$MODEL" --file "mtp=$MTP" --out artifacts/iq-prefill/baseline
+python tools/models/qualify.py record --model qwen3.8-flash-next --side candidate --plan artifacts/iq-prefill/plan.json --repo . --gufo build/release/gufo.exe --tool session_test=build/gpu-test/qwen38_flash_next_session_test.exe --file "gguf=$MODEL" --file "mtp=$MTP" --env "VCPKG_ROOT=$VCPKG" --out artifacts/iq-prefill/candidate
+python tools/models/qualify.py compare --model qwen3.8-flash-next --plan artifacts/iq-prefill/plan.json --baseline artifacts/iq-prefill/baseline --candidate artifacts/iq-prefill/candidate --out artifacts/iq-prefill/comparison
+# Each release arm, with baseline/candidate binary selected in ABBA order:
+& $GUFO bench --model "$MODEL" --speculative off -p 2048,4096 -n 128 -d 0 -r 3 --temperature 0 --seed 459
+& $PROBE --model "$IQ_MODEL" --batch 64 --context 4096 --prompt "$FIXTURE" --reference --dump "$LOGITS"
+# Fresh HTTP server per arm; wait for matching /props identity before requesting:
+& $GUFO serve --host 127.0.0.1 --port $PORT --sessions 1 llm --model "$MODEL" --context 8192 --mtp-model "$MTP" --speculative mtp --draft-tokens 7 --mtp-draft-vocab full --served-model-name gufo
+```
+
+The narrow staging adaptation is an effective prefill experiment: large
+native gains, a smaller cold-TTFT gain, no persistent expert expansion and
+no meaningful Q4/decode control movement. **Do not promote it as qualified.**
+The independent short-prompt reference improves on average while the
+repetitive continuation fixture worsens; neither supplies a model-owned
+acceptance policy. The next decision is whether to investigate this F16
+transition with broader independent quality evidence or require the old
+INT8 arithmetic and pursue a bit-preserving optimization. Existing exact,
+operator and state gates must remain intact. Linux, multi-client timing,
+GPU timeline profiling and broader teacher/capability evaluation are unrun.
+The timings cover the combined F16/paired candidate; a full-model pairing
+ablation and a first-differing-layer capture for the larger IQ continuation
+changes are also unrun.
