@@ -3398,10 +3398,15 @@ __launch_bounds__(256, 2) __global__ void WmmaCausalAttentionKernel(
   const auto* v_base =
       v_cache + (static_cast<std::size_t>(kv_head) * kHeadDim) + v_slice;
   const auto* k_base = k_cache + (static_cast<std::size_t>(kv_head) * kHeadDim);
+  // WMMA's PV sum can change its last bits when zero probabilities multiply
+  // populated values. The sparse window has no per-row final-tile pass, so
+  // keys past the group's last query read as zero padding whether or not the
+  // batch continues beyond the group.
+  const std::uint32_t key_end = sparse ? max_visible : context_end;
 
   const auto load_v = [&](const Tile& tile, uint4* dst) {
     const std::uint32_t key_position = tile_key(tile, v_key);
-    const bool live = key_position < context_end;
+    const bool live = key_position < key_end;
     const auto* src =
         v_base +
         (static_cast<std::size_t>(live ? key_position : 0) * kWmmaKvWidth);
@@ -3418,7 +3423,7 @@ __launch_bounds__(256, 2) __global__ void WmmaCausalAttentionKernel(
       const std::uint32_t idx = tid + (n * 256);
       const std::uint32_t key_position = tile_key(tile, idx / (kHeadDim / 8));
       const std::uint32_t d8 = (idx % (kHeadDim / 8)) * 8;
-      const bool live = key_position < context_end;
+      const bool live = key_position < key_end;
       dst[n] =
           live ? *reinterpret_cast<const uint4*>(
                      k_base +

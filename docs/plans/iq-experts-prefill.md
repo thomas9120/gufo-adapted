@@ -249,10 +249,24 @@ worsen.
 
 Both builds are byte-exact between p8 and p5 for positions below 2048, then
 differ on 92% of later rows. That is where `indexer_top_k` = 2048 sparse
-attention starts selecting 4-token compressed blocks, and p5 ends chunks
-inside a block. The fixture's largest changes, in prose continuations after
-2K and 4K prefill, sit in this regime. The width dependence predates this
-candidate and is investigated separately.
+attention starts selecting 4-token compressed blocks. The fixture's largest
+changes, in prose continuations after 2K and 4K prefill, sit in this regime.
+The width dependence predates this candidate and has three causes:
+
+- The sparse WMMA kernel packs four queries counted from the chunk start and
+  loaded values past the group's last query whenever the batch continued.
+  Zero probabilities times those values changed the PV sum's last bits. The
+  kernel now reads every key past the group as zero padding, so a group's
+  result no longer depends on where the batch ends. 4-aligned prefill, and so
+  the qualification capture, is byte-identical; p8 now equals p4 exactly on a
+  2,579-token wikitext slice.
+- Unaligned chunk starts still change which queries share a key union.
+- The indexer's BF16 key and query projections run through hipBLASLt, whose
+  kernel and edge tiles depend on the batch width. The deterministic F16
+  route for the router and alpha/beta projections does not cover BF16.
+
+On that slice, the 530 sparse positions changed top-1 on 14 rows between
+p8 and p1 before the kernel change and on 9 after it.
 
 This is a quantized-checkpoint comparison over one natural-text slice, not
 an unquantized teacher or capability score, and it does not supply the
