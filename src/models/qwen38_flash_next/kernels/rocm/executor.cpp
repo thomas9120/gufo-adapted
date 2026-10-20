@@ -1836,13 +1836,16 @@ bool Executor::MoeExperts(const DeviceLayer& l, const float* x, float* out,
   // Tiled batches take the WMMA route: assignments compacted by expert
   // into 16-row padded buckets, token rows narrowed to F16 once, then the
   // F16 matrix-core GEMM per (expert, row tile).
-  const bool wmma_experts = ExpertMatrixRows(n_tokens) &&
-                            (l.ffn_gate_exps.type == GgmlType::kQ4_K ||
-                             l.ffn_gate_exps.type == GgmlType::kQ5_K) &&
-                            l.ffn_up_exps.type == l.ffn_gate_exps.type &&
-                            (l.ffn_down_exps.type == GgmlType::kQ5_1 ||
-                             l.ffn_down_exps.type == GgmlType::kQ8_0) &&
-                            c.hidden_size % 256 == 0 && c.expert_ff % 64 == 0;
+  const GgmlType gate_format = l.ffn_gate_exps.type;
+  const GgmlType down_format = l.ffn_down_exps.type;
+  const bool wmma_experts =
+      ExpertMatrixRows(n_tokens) &&
+      (gate_format == GgmlType::kQ4_K || gate_format == GgmlType::kQ5_K ||
+       gate_format == GgmlType::kIQ3_S || gate_format == GgmlType::kIQ4_XS) &&
+      l.ffn_up_exps.type == gate_format &&
+      (down_format == GgmlType::kQ5_1 || down_format == GgmlType::kQ8_0 ||
+       down_format == GgmlType::kIQ4_NL) &&
+      c.hidden_size % 256 == 0 && c.expert_ff % 64 == 0;
   if (wmma_experts) {
     RoutedCompact(s_.ids, s_.expert_counts, s_.routed_bounds, s_.routed_cursors,
                   s_.rows_token, s_.rows_slot, n_tokens, used, c.num_experts,
@@ -1863,9 +1866,7 @@ bool Executor::MoeExperts(const DeviceLayer& l, const float* x, float* out,
     // Large batches pair the gate/up projections and apply SwiGLU without
     // materializing the gate. Smaller buckets favor separate projections.
     auto* up_half = reinterpret_cast<__half*>(s_.up_e);
-    const WeightType gate_type = l.ffn_gate_exps.type == GgmlType::kQ5_K
-                                     ? WeightType::kQ5_K
-                                     : WeightType::kQ4_K;
+    const WeightType gate_type = static_cast<WeightType>(gate_format);
     const bool gated_ok =
         n_tokens >= 1024 && routed_tile_rows_ == 48
             ? RoutedGatedF16Gemm(
@@ -1887,15 +1888,11 @@ bool Executor::MoeExperts(const DeviceLayer& l, const float* x, float* out,
       AssignError(error_msg, "routed F16 gate/up GEMM failed");
       return false;
     }
-    const WeightType down_type = l.ffn_down_exps.type == GgmlType::kQ8_0
-                                     ? WeightType::kQ8_0
-                                     : WeightType::kQ5_1;
+    const WeightType down_type = static_cast<WeightType>(down_format);
     // Larger down tiles amortize weight decoding. Reuse the 64-token map
     // when it has no more padded rows than the 48-token map.
-    const bool wide_down =
-        (down_type == WeightType::kQ5_1 || down_type == WeightType::kQ8_0) &&
-        routed_tile_rows_ == 48 && routed_64_tiles_ != 0 &&
-        routed_64_tiles_ * 4 <= routed_n_tiles_ * 3;
+    const bool wide_down = routed_tile_rows_ == 48 && routed_64_tiles_ != 0 &&
+                           routed_64_tiles_ * 4 <= routed_n_tiles_ * 3;
     // The down projection's rows are F16 too: the epilogue reads half the
     // bytes of the largest routed intermediate.
     if (!RoutedF16Gemm(l.ffn_down_exps.data, down_type, up_half,

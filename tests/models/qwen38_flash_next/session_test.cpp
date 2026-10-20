@@ -271,18 +271,30 @@ void CheckPrefillChunks(const std::shared_ptr<qfn::Model>& model) {
                           gufo::core::SessionMode::kSpeculative}) {
     if (mode == gufo::core::SessionMode::kSpeculative && !model->HasMtp())
       continue;
-    for (const auto [length, boundary] :
-         {std::pair{136U, 94U}, std::pair{136U, 103U}, std::pair{136U, 104U},
-          std::pair{136U, 127U}, std::pair{136U, 128U}, std::pair{136U, 135U},
-          std::pair{2048U, 1025U}, std::pair{4096U, 2048U},
-          std::pair{4096U, 1024U}, std::pair{3072U, 1024U}}) {
+    // Both sessions first sync `shared` tokens. Sparse attention packs four
+    // queries counted from the batch start, so an unaligned shared prefix
+    // fixes the packing while `boundary` ends a batch inside a group. Other
+    // splits past the budget can still differ: the BF16 indexer projections
+    // take hipBLASLt kernels that depend on the batch width.
+    struct Case {
+      unsigned length, shared, boundary;
+    };
+    for (const auto [length, shared, boundary] :
+         {Case{136, 0, 94}, Case{136, 0, 103}, Case{136, 0, 104},
+          Case{136, 0, 127}, Case{136, 0, 128}, Case{136, 0, 135},
+          Case{2048, 0, 1025}, Case{4096, 0, 2048}, Case{4096, 0, 1024},
+          Case{3072, 0, 1024}, Case{2309, 2049, 2053}, Case{2435, 2051, 2055},
+          Case{3072, 2049, 2561}}) {
       std::vector<std::int32_t> tokens(length);
       for (std::size_t i = 0; i < tokens.size(); ++i)
         tokens[i] = pattern[i % pattern.size()];
       auto bulk = model->CreateSession(mode, 6145, &error);
       auto split = model->CreateSession(mode, 6145, &error);
       Require(bulk && split, error);
-      Require(bulk->Sync(tokens, &error) &&
+      const auto prefix = std::span(tokens).first(shared);
+      Require((shared == 0 ||
+               (bulk->Sync(prefix, &error) && split->Sync(prefix, &error))) &&
+                  bulk->Sync(tokens, &error) &&
                   split->Sync(std::span(tokens).first(boundary), &error) &&
                   split->Sync(tokens, &error),
               error);
@@ -291,7 +303,7 @@ void CheckPrefillChunks(const std::shared_ptr<qfn::Model>& model) {
         RequireExact(
             logits, split->Logits(),
             "prefill chunking changed logits: length=" +
-                std::to_string(length) +
+                std::to_string(length) + " shared=" + std::to_string(shared) +
                 " boundary=" + std::to_string(boundary) + " mode=" +
                 (mode == gufo::core::SessionMode::kAutoregressive ? "ar"
                                                                   : "mtp") +
@@ -301,7 +313,7 @@ void CheckPrefillChunks(const std::shared_ptr<qfn::Model>& model) {
         Require(bulk->Evaluate(token, &error) && split->Evaluate(token, &error),
                 error);
       }
-      std::cout << "prefill chunks: length=" << length
+      std::cout << "prefill chunks: length=" << length << " shared=" << shared
                 << " boundary=" << boundary << " mode="
                 << (mode == gufo::core::SessionMode::kAutoregressive ? "ar"
                                                                      : "mtp")

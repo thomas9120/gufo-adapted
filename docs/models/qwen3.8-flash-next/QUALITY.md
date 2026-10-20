@@ -11,7 +11,7 @@ qualification. Latest measurements: September 20–23, 2026.
 | MTP versus scalar CPU formulas, eight text/image states | Fusion/attention relative RMS <0.0008 (limit 0.002); full-width normalization, split projections, recursive carry and full Q8 head checked |
 | Batched MTP/AR, C2/C4/C6/C8 | Logits, tokens, acceptance, RNG and every 1–8-token rollback prefix match isolated execution |
 | Sampling | 23 AR/MTP configurations; shared FP64 target filtering/CDF, p/q acceptance and residual correction pass |
-| Prefill and cache | Full logits match across tested chunk boundaries, short tails and restored state through 4096 tokens |
+| Prefill and cache | Full logits match across tested chunk boundaries, short tails and restored state through 4096 tokens; past 2048, other chunk shapes can differ ([causes](../../plans/iq-experts-prefill.md#natural-text-check)) |
 | Scalar versus bulk prefill, 2176 tokens | Same top-1; logit RMSE 0.18, not bit-identical |
 | Serving | Cancellation, three-turn continuation, reasoning/tool history, concurrent image/text isolation and disk restart pass |
 
@@ -19,6 +19,37 @@ Sampled MTP can consume different RNG draws from AR. Seeded replay requires
 the same build, request budget, capacity and sampling configuration; live cost
 timings only steer greedy decoding. Draft sampling uses the full Q8 head's
 top 64 logits; upstream draft-sampler equivalence is not claimed.
+
+## Experimental IQ F16 prefill
+
+October 19, 2026, native Windows/gfx1151: candidate `ec31961208de` versus
+`0817d23b6974`, same TheRock 10.0.0/clang 23 and artifacts. The existing
+qualification gate reports **FAIL for UD-IQ4_XS** and **PASS for UD-Q4_K_XL**.
+Both pass four CPU contracts, eleven GPU operator tests and all four model/state
+suites. Q4 retains all 999 complete vocabulary rows and perplexities exactly.
+
+IQ deliberately changes routed activation arithmetic from INT8 quantization
+to F16. All 999 baseline logit rows change; normal-prefill fixture perplexity
+increases **3.3522%**, from 1.2427840354 to 1.2844440694, and 314/324 top-1
+predictions agree. AR/MTP halves are byte-identical within the candidate.
+The increase comes from the 22 of 144 labels where the repeated pattern
+wraps into a string-initial token the model never sees naturally (+26%);
+the other 122 labels improve 0.27%. On 26,572 wikitext positions through
+the prefill path, the build change is +0.23% at p8 and -0.07% at p5. That
+is within the +0.22% the baseline alone moves between those widths, and
+every interval includes zero.
+
+Independent F64 operators pass their unchanged limits, including real expert
+dimensions and tiny/ragged batches. On three short matched CPU-reference
+fixtures, top-1 agreement improves from 51/52 to 52/52 and mean KL from
+0.00439308 to 0.00250885; maximum KL increases from 0.03179 to 0.03374.
+Printed reference KL values have five decimal places.
+
+The candidate remains experimental. No golden or tolerance was changed, and
+the model has no declared numerical acceptance limits for this transition.
+Linux, unquantized-teacher qualification and image qualification remain
+unrun. [Scope, commands and interpretation](../../plans/iq-experts-prefill.md)
+and [compact identities/results](artifacts/iq-prefill-f16-candidate.json).
 
 ## Vision
 

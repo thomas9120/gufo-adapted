@@ -265,14 +265,14 @@ def required_variants() -> list[str]:
     for tile, half in (((64, 128, 4, 2, 4), 1), ((64, 128, 4, 2, 4), 0),
                        ((128, 128, 2, 4, 2), 0), ((128, 64, 4, 4, 2), 0)):
         names.append(FLASH_W8 + ints(tile) + f"Lb{half}EEEv")
-    for fmt in (12, 7, 8, 13):
+    for fmt in (12, 7, 8, 13, 20, 21, 23):
         for bn in (16, 48):
             names.append(FLASH_ROUTED + f"LNS2_10WeightTypeE{fmt}E" +
                          ints((128, bn, 2)) + "Lb0EEEv")
-    for fmt in (7, 8):
+    for fmt in (7, 8, 20, 21, 23):
         names.append(FLASH_ROUTED + f"LNS2_10WeightTypeE{fmt}E" +
                      ints((128, 64, 2)) + "Lb0EEEv")
-    for fmt in (12, 13):
+    for fmt in (12, 13, 21, 23):
         for bn in (64, 128):
             names.append(FLASH_ROUTED + f"LNS2_10WeightTypeE{fmt}E" +
                          ints((128, bn, 2)) + "Lb1EEEv")
