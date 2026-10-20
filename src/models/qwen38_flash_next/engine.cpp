@@ -717,8 +717,8 @@ bool Session::TeacherForce(std::span<const std::int32_t> tokens,
   // The same Forward calls DecodeStep makes: a one-token decode, or a verify
   // pass with a specified kept prefix (the draft head is never consulted).
   // Prefill arithmetic is the same at every chunk width, except past
-  // indexer_top_k: sparse attention packs four queries from each chunk start,
-  // and the BF16 indexer projections take width-dependent hipBLASLt kernels.
+  // indexer_top_k, where sparse attention packs four queries from each chunk
+  // start.
   const auto mode = prefill  ? rocm::Executor::ForwardMode::kPrefill
                     : n == 1 ? rocm::Executor::ForwardMode::kDecode
                              : rocm::Executor::ForwardMode::kVerify;

@@ -219,8 +219,7 @@ public:
   /// the device for MtpForward. kVerify permits Rollback (at most
   /// max_speculative rows). kPrefill uses consistent prompt arithmetic at
   /// every chunk width, except past indexer_top_k, where sparse attention
-  /// packs four queries counted from the chunk start and the BF16 indexer
-  /// projections take hipBLASLt kernels chosen by the chunk width.
+  /// packs four queries counted from the chunk start.
   /// `verify_candidates` (kVerify with null logits): the pass also selects
   /// every row's candidate list for VerifyCandidates inside its own graph,
   /// saving the separate launch and synchronization afterwards.

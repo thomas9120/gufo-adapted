@@ -131,6 +131,11 @@ bool BlasLt::Gemm(const void* weights, const void* input, float* out,
     return UnquantizedF16Gemm(weights, static_cast<const __half*>(input), out,
                               n, m, k, stream_);
   }
+  // The BF16 indexer keys and queries choose sparse attention blocks; a
+  // chunk-dependent sum can swap a block at the selection boundary.
+  if (type == HIP_R_16BF && k == 2560 && (m == 128 || m == 512)) {
+    return UnquantizedBf16Gemm(weights, input, out, n, m, k, stream_);
+  }
   // Exact dimensions prevent the first ragged request from determining
   // which kernel later requests in the same size bucket receive.
   const std::array<int, 4> key{static_cast<int>(type), m, n, k};

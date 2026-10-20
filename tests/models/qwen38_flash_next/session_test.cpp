@@ -273,9 +273,7 @@ void CheckPrefillChunks(const std::shared_ptr<qfn::Model>& model) {
       continue;
     // Both sessions first sync `shared` tokens. Sparse attention packs four
     // queries counted from the batch start, so an unaligned shared prefix
-    // fixes the packing while `boundary` ends a batch inside a group. Other
-    // splits past the budget can still differ: the BF16 indexer projections
-    // take hipBLASLt kernels that depend on the batch width.
+    // fixes the packing while `boundary` ends a batch inside a group.
     struct Case {
       unsigned length, shared, boundary;
     };

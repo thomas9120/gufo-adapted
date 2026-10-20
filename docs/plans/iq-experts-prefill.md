@@ -261,12 +261,20 @@ The width dependence predates this candidate and has three causes:
   the qualification capture, is byte-identical; p8 now equals p4 exactly on a
   2,579-token wikitext slice.
 - Unaligned chunk starts still change which queries share a key union.
-- The indexer's BF16 key and query projections run through hipBLASLt, whose
-  kernel and edge tiles depend on the batch width. The deterministic F16
-  route for the router and alpha/beta projections does not cover BF16.
+- The indexer's BF16 key and query projections ran through hipBLASLt, whose
+  kernel and edge tiles depend on the batch width. They now take the
+  deterministic GEMM of the F16 router and alpha/beta projections, with BF16
+  matrix instructions; `blaslt_ops_test` fails on its chunk split without
+  that route. These tensors are BF16 in both GGUFs, so every sparse-prefill
+  logit changes slightly in both formats: on the slice, the new p8 agrees
+  with the old p8 on 98.87% of top-1 tokens past 2048. The normal-prefill
+  capture keeps its 96- to 2048-token prefixes byte-identical, but 2 of the
+  48 top-1 tokens after 4096-token prefixes change. The qualification
+  records therefore describe `ec31961208de` only, in both formats.
 
 On that slice, the 530 sparse positions changed top-1 on 14 rows between
-p8 and p1 before the kernel change and on 9 after it.
+p8 and p1 before the kernel change and on 9 after it, with or without the
+BF16 route.
 
 This is a quantized-checkpoint comparison over one natural-text slice, not
 an unquantized teacher or capability score, and it does not supply the

@@ -2115,6 +2115,13 @@ __device__ __forceinline__ v8f Wmma(v16h a, v16h b, v8f c) {
   return __builtin_amdgcn_wmma_f32_16x16x16_f16_w32(a, b, c);
 }
 
+// The same fragments carrying BF16 bit patterns.
+using v16s = __attribute__((__vector_size__(16 * sizeof(short)))) short;
+__device__ __forceinline__ v8f WmmaBf16(v16h a, v16h b, v8f c) {
+  return __builtin_amdgcn_wmma_f32_16x16x16_bf16_w32(
+      __builtin_bit_cast(v16s, a), __builtin_bit_cast(v16s, b), c);
+}
+
 // Keep indexer queries in F32: narrowing them before ranking can swap blocks
 // at the selection boundary. A thread scores one key, reusing it across all
 // four heads. Preserve the original wave32 F32 accumulation and reduction
@@ -5370,10 +5377,11 @@ struct AttentionProjectionOutput {
 /// committed to LDS (magic-number F16 construction, exact for a Q8_0 code),
 /// and the activations are F16 rows [batch][k], so the matrix cores
 /// accumulate in F32 with no per-block scaling. F16 weights skip decoding
-/// and use the same ordered K16 products. y is [batch][m].
+/// and use the same ordered K16 products; kBf16 reads BF16 weights and
+/// activations instead. y is [batch][m].
 template<int BM, int BN, int BK, int WM, int WN, int kRowGroup = 1,
          bool kHcMix = false, bool kSsmConv = false, bool kAttention = false,
-         bool kHalfWeights = false>
+         bool kHalfWeights = false, bool kBf16 = false>
 __launch_bounds__(256) __global__ void DenseF16GEMMKernel(
     const void* __restrict__ w, const __half* __restrict__ x,
     float* __restrict__ y, std::size_t batch, std::size_t m, std::size_t k,
@@ -5382,6 +5390,7 @@ __launch_bounds__(256) __global__ void DenseF16GEMMKernel(
     float* conv_out = nullptr, AttentionProjectionOutput attention = {}) {
   static_assert(WM * WN == 8, "256 threads is 8 waves");
   static_assert(BM % (16 * WM) == 0 && BN % (16 * WN) == 0);
+  static_assert(!kBf16 || kHalfWeights, "BF16 weights are unquantized");
   constexpr int kRowTiles = BM / 16;
   constexpr int kTokTiles = BN / 16;
   constexpr int kWaveRowTiles = kRowTiles / WM;
@@ -5598,11 +5607,16 @@ __launch_bounds__(256) __global__ void DenseF16GEMMKernel(
         __builtin_memcpy(&b_hi, &c[2], 32);
 #pragma unroll
         for (int i = 0; i < kWaveRowTiles; ++i) {
-          acc[i][j] = Wmma(a_lo[i], b_lo, acc[i][j]);
-          if constexpr (kHalfWeights)
+          if constexpr (kBf16) {
+            acc[i][j] = WmmaBf16(a_lo[i], b_lo, acc[i][j]);
+            acc_high[i][j] = WmmaBf16(a_hi[i], b_hi, acc_high[i][j]);
+          } else if constexpr (kHalfWeights) {
+            acc[i][j] = Wmma(a_lo[i], b_lo, acc[i][j]);
             acc_high[i][j] = Wmma(a_hi[i], b_hi, acc_high[i][j]);
-          else
+          } else {
+            acc[i][j] = Wmma(a_lo[i], b_lo, acc[i][j]);
             acc[i][j] = Wmma(a_hi[i], b_hi, acc[i][j]);
+          }
         }
       }
     }
@@ -5956,26 +5970,41 @@ bool HcMixF16Gemm(const void* up, const __half* low_rank, const __half* xn,
   return true;
 }
 
-bool UnquantizedF16Gemm(const void* w, const __half* x, float* out,
-                        std::size_t batch, std::size_t m, std::size_t k,
-                        hipStream_t stream) {
+template<bool kBf16>
+bool UnquantizedGemm(const void* w, const void* x, float* out,
+                     std::size_t batch, std::size_t m, std::size_t k,
+                     hipStream_t stream) {
   if (m == 0 || batch == 0 || k == 0 || k % 32 != 0)
     return false;
+  // The kernel stages 16-bit activations of either format as raw bits.
+  const auto* bits = static_cast<const __half*>(x);
   // Wide batches reuse each staged fragment across twice the rows and
   // tokens (router 0.61 to 0.52 ms, GDN alpha/beta 0.14 to 0.09 ms at 4,096
   // tokens). Every output keeps its two K16 chains in K order.
   if (batch >= 1024) {
-    hipLaunchKernelGGL(
-        (DenseF16GEMMKernel<128, 128, 2, 2, 4, 1, false, false, false, true>),
-        dim3((batch + 127) / 128, (m + 127) / 128), dim3(kThreads), 0, stream,
-        w, x, out, batch, m, k);
+    hipLaunchKernelGGL((DenseF16GEMMKernel<128, 128, 2, 2, 4, 1, false, false,
+                                           false, true, kBf16>),
+                       dim3((batch + 127) / 128, (m + 127) / 128),
+                       dim3(kThreads), 0, stream, w, bits, out, batch, m, k);
     return true;
   }
-  hipLaunchKernelGGL(
-      (DenseF16GEMMKernel<64, 64, 2, 2, 4, 1, false, false, false, true>),
-      dim3((batch + 63) / 64, (m + 63) / 64), dim3(kThreads), 0, stream, w, x,
-      out, batch, m, k);
+  hipLaunchKernelGGL((DenseF16GEMMKernel<64, 64, 2, 2, 4, 1, false, false,
+                                         false, true, kBf16>),
+                     dim3((batch + 63) / 64, (m + 63) / 64), dim3(kThreads), 0,
+                     stream, w, bits, out, batch, m, k);
   return true;
+}
+
+bool UnquantizedF16Gemm(const void* w, const __half* x, float* out,
+                        std::size_t batch, std::size_t m, std::size_t k,
+                        hipStream_t stream) {
+  return UnquantizedGemm<false>(w, x, out, batch, m, k, stream);
+}
+
+bool UnquantizedBf16Gemm(const void* w, const void* x, float* out,
+                         std::size_t batch, std::size_t m, std::size_t k,
+                         hipStream_t stream) {
+  return UnquantizedGemm<true>(w, x, out, batch, m, k, stream);
 }
 
 bool DenseF16Gemm(const void* w, const __half* x, float* out, std::size_t batch,

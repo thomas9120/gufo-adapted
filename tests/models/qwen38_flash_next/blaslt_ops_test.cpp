@@ -2,6 +2,7 @@
 #include <hip/hip_runtime.h>
 
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
@@ -30,6 +31,21 @@ struct Buffer {
   Buffer& operator=(const Buffer&) = delete;
 };
 
+// Rounds to the nearest BF16 (the test values are finite).
+std::uint16_t ToBf16(float value) {
+  std::uint32_t bits = 0;
+  std::memcpy(&bits, &value, sizeof(bits));
+  return static_cast<std::uint16_t>((bits + 0x7FFFU + ((bits >> 16) & 1U)) >>
+                                    16);
+}
+
+float FromBf16(std::uint16_t bits) {
+  const std::uint32_t wide = static_cast<std::uint32_t>(bits) << 16;
+  float value = 0.0F;
+  std::memcpy(&value, &wide, sizeof(value));
+  return value;
+}
+
 }  // namespace
 
 int main() {
@@ -39,26 +55,43 @@ int main() {
     auto warmed = BlasLt::Create(nullptr, &error);
     Require(warmed != nullptr, error);
     constexpr int max_n = 4096;
-    for (const auto [m, k] :
-         {std::pair{96, 2560}, std::pair{513, 2560}, std::pair{33, 96}}) {
-      std::vector<__half> weights(static_cast<std::size_t>(m) * k);
-      std::vector<__half> input(static_cast<std::size_t>(max_n) * k);
+    struct Shape {
+      int m, k;
+      hipDataType type;
+    };
+    // Router and alpha/beta (F16), the indexer keys and queries (BF16), and
+    // a library shape.
+    for (const auto [m, k, type] :
+         {Shape{96, 2560, HIP_R_16F}, Shape{513, 2560, HIP_R_16F},
+          Shape{128, 2560, HIP_R_16BF}, Shape{512, 2560, HIP_R_16BF},
+          Shape{33, 96, HIP_R_16F}}) {
+      const bool bf16 = type == HIP_R_16BF;
+      // Device bits and the exact values they hold.
+      std::vector<std::uint16_t> weights(static_cast<std::size_t>(m) * k);
+      std::vector<std::uint16_t> input(static_cast<std::size_t>(max_n) * k);
+      std::vector<float> weight_values(weights.size());
+      std::vector<float> input_values(input.size());
       unsigned rng = 123;
-      for (auto* values : {&weights, &input}) {
-        for (auto& v : *values) {
+      for (auto [bits, values] : {std::pair{&weights, &weight_values},
+                                  std::pair{&input, &input_values}}) {
+        for (std::size_t i = 0; i < bits->size(); ++i) {
           rng ^= rng << 13;
           rng ^= rng >> 17;
           rng ^= rng << 5;
-          v = __float2half_rn(static_cast<float>(int(rng % 8193) - 4096) /
-                              4096.0F);
+          const float v = static_cast<float>(int(rng % 8193) - 4096) / 4096.0F;
+          const __half h = __float2half_rn(v);
+          (*bits)[i] = bf16 ? ToBf16(v) : __builtin_bit_cast(std::uint16_t, h);
+          (*values)[i] = bf16 ? FromBf16((*bits)[i]) : __half2float(h);
         }
       }
-      Buffer a(weights.size() * sizeof(__half));
-      Buffer b(input.size() * sizeof(__half));
+      Buffer a(weights.size() * sizeof(std::uint16_t));
+      Buffer b(input.size() * sizeof(std::uint16_t));
       Buffer c(static_cast<std::size_t>(m) * max_n * sizeof(float));
-      Check(hipMemcpy(a.data, weights.data(), weights.size() * sizeof(__half),
+      Check(hipMemcpy(a.data, weights.data(),
+                      weights.size() * sizeof(std::uint16_t),
                       hipMemcpyHostToDevice));
-      Check(hipMemcpy(b.data, input.data(), input.size() * sizeof(__half),
+      Check(hipMemcpy(b.data, input.data(),
+                      input.size() * sizeof(std::uint16_t),
                       hipMemcpyHostToDevice));
       if (k == 2560) {
         // Exercise both an unaligned cache boundary and a wide prefill split.
@@ -66,7 +99,7 @@ int main() {
              {std::pair{136, 94}, std::pair{2048, 1025}}) {
           std::vector<float> bulk(std::size_t(m) * total), split(bulk.size());
           Require(warmed->Gemm(a.data, b.data, static_cast<float*>(c.data),
-                               HIP_R_16F, m, total, k, &error),
+                               type, m, total, k, &error),
                   error);
           Check(hipMemcpy(bulk.data(), c.data, bulk.size() * sizeof(float),
                           hipMemcpyDeviceToHost));
@@ -74,9 +107,10 @@ int main() {
                                       std::pair{boundary, total - boundary}}) {
             Require(
                 warmed->Gemm(
-                    a.data, static_cast<__half*>(b.data) + std::size_t(off) * k,
-                    static_cast<float*>(c.data) + std::size_t(off) * m,
-                    HIP_R_16F, m, n, k, &error),
+                    a.data,
+                    static_cast<std::uint16_t*>(b.data) + std::size_t(off) * k,
+                    static_cast<float*>(c.data) + std::size_t(off) * m, type, m,
+                    n, k, &error),
                 error);
           }
           Check(hipMemcpy(split.data(), c.data, split.size() * sizeof(float),
@@ -92,8 +126,8 @@ int main() {
         std::vector<float> actual(reference.size());
         for (int pass = 0; pass < 3; ++pass) {
           auto& blas = pass == 1 ? fresh : warmed;
-          Require(blas->Gemm(a.data, b.data, static_cast<float*>(c.data),
-                             HIP_R_16F, m, n, k, &error),
+          Require(blas->Gemm(a.data, b.data, static_cast<float*>(c.data), type,
+                             m, n, k, &error),
                   error);
           Check(hipDeviceSynchronize());
           Check(hipMemcpy(actual.data(), c.data, actual.size() * sizeof(float),
@@ -111,9 +145,9 @@ int main() {
           const int col = (sample * 127) % m;
           double expected = 0.0;
           for (int j = 0; j < k; ++j) {
-            expected += static_cast<double>(
-                            __half2float(weights[std::size_t(col) * k + j])) *
-                        __half2float(input[std::size_t(row) * k + j]);
+            expected +=
+                static_cast<double>(weight_values[std::size_t(col) * k + j]) *
+                input_values[std::size_t(row) * k + j];
           }
           const float result = actual[std::size_t(row) * m + col];
           Require(std::isfinite(result) && std::abs(result - expected) < 0.002,
@@ -121,8 +155,8 @@ int main() {
         }
       }
     }
-    std::cout << "PASS: F16 projection replay, chunk boundaries, ragged shapes "
-                 "and F64\n";
+    std::cout << "PASS: F16/BF16 projection replay, chunk boundaries, ragged "
+                 "shapes and F64\n";
   } catch (const std::exception& error) {
     std::cerr << "FAIL: " << error.what() << '\n';
     return 1;

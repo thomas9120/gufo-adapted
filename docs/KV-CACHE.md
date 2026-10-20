@@ -300,8 +300,7 @@ exactly at the previous frontier. The re-prefilled gap follows different chunk
 shapes, as with any partial hit, so sampled output can differ from the
 pre-restart response. Greedy output can differ too where prefill is not exact
 at every chunk shape: on Qwen3.8 Flash-Next, past 2048 tokens, sparse
-attention packs four queries counted from each chunk's start, and the BF16
-indexer projections take hipBLASLt kernels chosen by batch width. A
+attention packs four queries counted from each chunk's start. A
 teacher-forced wikitext slice changed top-1 on 9 of 530 such positions
 between 8-token and 1-token chunks **(measured)**. Plain continuation from RAM
 is unaffected.
