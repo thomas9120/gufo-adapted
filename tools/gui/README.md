@@ -73,6 +73,12 @@ whether it launched with unsaved changes. Saving, renaming, or deleting a preset
 does not change a running process. Concurrent edits from a stale browser tab are
 rejected; reload that tab before saving again.
 
+The Server panel also shows the engine's actual loaded model path, build revision,
+per-session context and Vision on/off capability from `/props`. These values come
+through the launcher's same-origin status endpoint, independently of the next-launch
+form, and refresh with the metrics. Missing fields or an unavailable `/props` show
+dashes; stopping, restarting or disconnecting clears the reported identity.
+
 Choosing or entering a different main model clears sidecars and resets speculative
 decoding to Off. Loading a preset restores all its fields together, including its
 sidecars. Changing the model family limits available speculative modes without
@@ -110,6 +116,9 @@ engine.
 **Stop** releases the launched Gufo process. Closing a browser tab keeps it
 running; **Exit launcher** or Ctrl+C in the launcher terminal stops both. On
 Windows, Stop terminates the owned process tree and waits for it to exit.
+When the latest metrics report generating or queued requests, Stop and Exit launcher
+show their counts and ask for confirmation. Cancel or Escape leaves Gufo running.
+Idle servers and older executables without request counts stop without this prompt.
 A Windows Job Object also terminates that tree if the launcher crashes or its
 terminal is closed abruptly. Failed shutdowns remain visible and can be retried
 with Stop; Exit launcher does not report success while shutdown has failed.
@@ -178,7 +187,8 @@ existing per-step timers do not isolate GPU compute time; Flash-Next steps wait
 for logits readback. These metrics do not introduce additional GPU waits.
 Processing includes cache preparation and cleanup; queued requests await a
 session. Live rates need two consecutive polls; failures, restarts and counter
-resets clear their baseline, and idle rates show zero. A prefill time-counter
+resets clear their baseline. Both live rates show a dash when processing and queued
+request counts are zero; completed speeds and cumulative totals remain visible. A prefill time-counter
 reset or missing timing baseline shows a dash until a valid interval is available.
 Executables with live token counters but no prefill time counter retain the
 previous wall-time prefill calculation, identified by the panel's explanatory text.
@@ -249,6 +259,7 @@ or errors; they do not verify browser layout.
 
 - `server.py` owns local HTTP controls, security, and the running configuration
   snapshot. `launcher_process.py` and `windows_job.py` own process lifetime.
+  `engine_props.py` reads runtime identity from the owned engine.
 - `settings.py` owns common defaults and validation; `models.py` owns curated
   family definitions exposed to both backend validation and the browser.
 - `presets.py` owns preset operations, schema migration, and atomic JSON writes.
@@ -256,6 +267,8 @@ or errors; they do not verify browser layout.
   lightweight artifact checks. Neither launches a process.
 - Browser modules separate form editing, presets, file picking, and runtime
   display. `app.js` wires them together through direct calls and callbacks.
+  `runtime-metrics.js` and `runtime-identity.js` render engine observations;
+  `busy-actions.js` confirms Stop/Exit using the shared `dialogs.js` helper.
   `i18n.js` translates English source strings using `static/locales/zh-CN.js`;
   missing entries retain the English text. Use `text()` with named placeholders
   for dynamic UI messages, and keep user data out of translation keys. Template

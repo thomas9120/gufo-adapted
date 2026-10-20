@@ -1,67 +1,10 @@
 // npm install --prefix build/gui-test-js --no-save --package-lock=false jsdom@26.1.0
 // node --experimental-vm-modules --test tests/tools/gui_dom_test.mjs
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
-import { createRequire } from "node:module";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import vm from "node:vm";
 import test from "node:test";
-
-const root = fileURLToPath(new URL("../../", import.meta.url));
-const require = createRequire(path.join(root, "build/gui-test-js/package.json"));
-const { JSDOM } = require("jsdom");
-const python = process.env.GUI_TEST_PYTHON || path.join(root, process.platform === "win32"
-  ? "build/gui-env/Scripts/python.exe" : "build/gui-env/bin/python");
-const fixture = JSON.parse(execFileSync(python, ["-c", `
-import json, re, sys, tempfile, threading
-from pathlib import Path
-sys.path.insert(0, 'tools/gui')
-from server import create_app
-from launcher_process import ProcessManager
-with tempfile.TemporaryDirectory() as directory:
-    app = create_app(Path(directory) / 'settings.json', ProcessManager(), threading.Event())
-    client = app.test_client()
-    html = client.get('/').text
-    token = re.search('name="gufo-token" content="([^"]+)"', html)[1]
-    initial = client.get('/api/settings', headers={'X-Gufo-Token': token}).json
-    print(json.dumps({'html': html, 'initial': initial}))
-`], { cwd: root, encoding: "utf8" }));
-
-async function setup(t, language = "en") {
-  const dom = new JSDOM(fixture.html, { url: "http://localhost/", runScripts: "outside-only" });
-  t.after(() => dom.window.close());
-  const { window } = dom;
-  if (language) window.localStorage.setItem("gufo.language", language);
-  window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
-  window.HTMLDialogElement.prototype.close = function (value = this.returnValue) {
-    this.returnValue = value; this.open = false; this.dispatchEvent(new window.Event("close"));
-  };
-  const modules = new Map();
-  async function load(name) {
-    if (modules.has(name)) return modules.get(name);
-    const module = readFile(path.join(root, "tools/gui/static", name), "utf8").then((code) =>
-      new vm.SourceTextModule(code, { context: dom.getInternalVMContext(), identifier: name }));
-    modules.set(name, module);
-    return module;
-  }
-  async function use(name) {
-    const module = await load(name);
-    if (module.status === "unlinked") await module.link((specifier) => load(specifier.replace(/^\.\//, "")));
-    if (module.status !== "evaluated") await module.evaluate();
-    return module.namespace;
-  }
-  return { window, use, $: (id) => window.document.getElementById(id),
-           initial: structuredClone(fixture.initial) };
-}
-
-function edit(env, id, value) {
-  env.$(id).value = value;
-  env.$(id).dispatchEvent(new env.window.Event("input", { bubbles: true }));
-  env.$(id).dispatchEvent(new env.window.Event("change", { bubbles: true }));
-}
-const tick = () => new Promise((resolve) => setImmediate(resolve));
+import { setup, edit, tick } from "./gui_dom_helpers.mjs";
+import "./gui_runtime_dom_test.mjs";
 
 test("English is the initial language and Chinese static UI strings have translations", async (t) => {
   const env = await setup(t, null);
@@ -125,7 +68,7 @@ test("translations preserve placeholders and unknown source messages", async (t)
 test("theme button labels follow both theme and language changes", async (t) => {
   const env = await setup(t);
   env.window.matchMedia = () => ({ matches: false, addEventListener() {} });
-  env.window.eval(await readFile(path.join(root, "tools/gui/static/theme.js"), "utf8"));
+  env.window.eval(await readFile(new URL("../../tools/gui/static/theme.js", import.meta.url), "utf8"));
   env.window.document.dispatchEvent(new env.window.Event("DOMContentLoaded"));
   const { initLanguage, setLanguage } = await env.use("i18n.js");
   initLanguage();
@@ -457,52 +400,6 @@ test("save as, rename, failed save, and delete keep the correct draft", async (t
   assert.equal(form.values().context, settings.context);
 });
 
-test("performance distinguishes live rates, completed speeds, legacy engines, and disconnects", async (t) => {
-  const env = await setup(t);
-  const { createRuntime } = await env.use("runtime.js");
-  const runtime = createRuntime(() => {});
-  const metrics = { prefill_tps: 800, generation_tps: 25.5, prompt_tokens_total: 100,
-    generated_tokens_total: 20, requests_processing: 1, requests_deferred: 2,
-    live_prefill_tps: 0, live_generation_tps: 19.5 };
-  const ready = { state: "ready", logs: [], pid: 123, metrics };
-  runtime.render(ready);
-  assert.equal(env.$("live-prefill-speed").textContent, "0.0");
-  assert.equal(env.$("live-generation-speed").textContent, "19.5");
-  assert.equal(env.$("prefill-speed").textContent, "800.0");
-  assert.equal(env.$("generation-speed").textContent, "25.5");
-  assert.equal(env.$("prompt-total").textContent, "100");
-  assert.equal(env.$("requests-processing").textContent, "1");
-  assert.equal(env.$("requests-deferred").textContent, "2");
-  assert.match(env.$("metrics-detail").textContent, /exclude cached tokens/);
-  runtime.render({ ...ready, metrics: { ...metrics, prompt_seconds_total: 0.125 } });
-  assert.match(env.$("metrics-detail").textContent, /prefill uses measured processing time/);
-  assert.equal(env.$("live-prefill-speed").textContent, "0.0");
-  runtime.render({ ...ready, metrics: { ...metrics, prompt_tokens_total: 0,
-    generated_tokens_total: 0, requests_processing: 0, requests_deferred: 2 } });
-  assert.match(env.$("metrics-note").textContent, /Live totals/);
-  runtime.render({ ...ready, metrics: { ...metrics, live_prefill_tps: null, live_generation_tps: null } });
-  assert.equal(env.$("live-generation-speed").textContent, "—");
-  assert.equal(env.$("generation-speed").textContent, "25.5");
-  runtime.render({ ...ready, metrics: { ...metrics, requests_processing: 0, requests_deferred: 0,
-    live_prefill_tps: 0, live_generation_tps: 0 } });
-  assert.equal(env.$("live-generation-speed").textContent, "0.0");
-  assert.equal(env.$("requests-processing").textContent, "0");
-  runtime.render({ ...ready, metrics: { prefill_tps: 800, generation_tps: 25.5,
-    prompt_tokens_total: 100, generated_tokens_total: 20 } });
-  assert.equal(env.$("requests-processing").textContent, "—");
-  assert.equal(env.$("live-generation-speed").textContent, "—");
-  assert.equal(env.$("generation-speed").textContent, "25.5");
-  assert.match(env.$("metrics-note").textContent, /Update the Gufo executable/);
-  assert.match(env.$("metrics-detail").textContent, /includes cached prompt tokens/);
-  runtime.render({ ...ready, metrics: null });
-  assert.match(env.$("metrics-note").textContent, /Retrying/);
-  for (const state of ["loading", "stopped", "disconnected"]) {
-    runtime.render({ ...ready, state });
-    for (const id of ["live-prefill-speed", "live-generation-speed", "prefill-speed", "generation-speed",
-      "prompt-total", "generated-total", "requests-processing", "requests-deferred"])
-      assert.equal(env.$(id).textContent, "—");
-  }
-});
 
 test("application initializes and previews edits without launching or saving", async (t) => {
   const env = await setup(t);

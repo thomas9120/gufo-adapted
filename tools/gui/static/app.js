@@ -4,6 +4,7 @@ import { createSettingsForm, sameSettings } from "./settings-form.js";
 import { createPresets } from "./presets.js";
 import { initFilePicker } from "./file-picker.js";
 import { createRuntime } from "./runtime.js";
+import { confirmBusyAction } from "./busy-actions.js";
 
 initLanguage();
 
@@ -53,8 +54,11 @@ $("settings-form").addEventListener("submit", (event) => {
   event.preventDefault();
   action(async () => runtime.render(await api("start", { settings: form.values(), preset_id: presets.id })));
 });
-$("stop-button").addEventListener("click", () => action(async () => runtime.render(await api("stop", {}))));
+$("stop-button").addEventListener("click", () => action(async () => {
+  if (await confirmBusyAction(runtime.state, "stop")) runtime.render(await api("stop", {}));
+}));
 $("exit-button").addEventListener("click", () => action(async () => {
+  if (!await confirmBusyAction(runtime.state, "exit")) return;
   await api("exit", {});
   closed = true;
   runtime.close();

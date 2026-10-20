@@ -1,14 +1,7 @@
 import { text } from "./i18n.js";
 import { $, api, notice } from "./api.js";
 import { sameSettings } from "./settings-form.js";
-
-function ask(dialog) {
-  return new Promise((resolve) => {
-    dialog.returnValue = "cancel";
-    dialog.addEventListener("close", () => resolve(dialog.returnValue), { once: true });
-    dialog.showModal();
-  });
-}
+import { ask } from "./dialogs.js";
 
 export function createPresets(initial, form, action, onChange) {
   let document = initial.document;

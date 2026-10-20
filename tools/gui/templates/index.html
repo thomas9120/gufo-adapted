@@ -128,6 +128,8 @@
       <div class="runtime-heading"><h2 id="runtime-heading" data-i18n="Server">Server</h2><span id="status" class="status stopped" role="status" data-i18n="Stopped">Stopped</span></div>
       <p id="running-preset" class="hint"></p>
       <div class="connection"><span data-i18n="API base URL">API base URL</span><code id="api-url">http://127.0.0.1:8080/v1</code><button type="button" id="copy-url" class="quiet" data-i18n="Copy">Copy</button><span id="active-model"></span></div>
+      <div class="connection"><span id="vision-chip" class="status" data-i18n="Vision: —">Vision: —</span></div>
+      {% include "runtime-identity.html" %}
       <p class="hint" id="runtime-note" data-i18n="Start Gufo to connect your OpenAI-compatible client.">Start Gufo to connect your OpenAI-compatible client.</p>
       <section class="performance" aria-labelledby="performance-heading">
         <h3 id="performance-heading" data-i18n="Performance">Performance</h3>
@@ -150,6 +152,7 @@
     <footer><span data-i18n="Gufo · Made for Strix Halo">Gufo · Made for Strix Halo</span><span id="settings-location"></span></footer>
   </main>
   {% include "preset-dialogs.html" %}
+  {% include "busy-dialog.html" %}
   <dialog id="file-dialog" aria-labelledby="picker-title">
     <div class="dialog-heading"><h2 id="picker-title" data-i18n="Choose a file">Choose a file</h2><button type="button" id="close-picker" class="quiet" aria-label="Close file picker" data-i18n-aria-label="Close file picker">✕</button></div>
     <div id="picker-roots" class="roots"></div>

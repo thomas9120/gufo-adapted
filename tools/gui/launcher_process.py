@@ -12,6 +12,8 @@ import time
 import urllib.error
 import urllib.request
 
+from engine_props import fetch_props
+
 if os.name == "nt":
     from windows_job import WindowsJob
 
@@ -83,11 +85,13 @@ class ProcessManager:
         self.model_name = ""
         self.started_at = None
         self.metrics = None
+        self.props = None
 
     def snapshot(self):
         with self.lock:
             return {"state": self.state, "error": self.error, "exit_code": self.exit_code,
                     "metrics": self.metrics if self.state == "ready" else None,
+                    "props": self.props if self.state == "ready" else None,
                     "logs": list(self.logs), "command": list(self.command),
                     "base_url": self.base_url, "model_name": self.model_name,
                     "pid": self.process.pid if self.process and self.process.poll() is None else None,
@@ -116,6 +120,7 @@ class ProcessManager:
                 raise ValueError(f"Port {port} is already in use. Choose another port.")
             self.logs.clear()
             self.metrics = None
+            self.props = None
             self.command = list(command)
             self.base_url = f"http://{connect_host}:{port}/v1"
             self.model_name = model_name
@@ -205,9 +210,11 @@ class ProcessManager:
                     previous_metrics_at = sampled_at
                 else:
                     previous_metrics = None
+                props = fetch_props(client, f"http://{host}:{port}/props")
                 with self.lock:
                     if self.process is child and self.state == "ready":
                         self.metrics = metrics
+                        self.props = props
                 next_metrics_poll = time.monotonic() + 1.0
             time.sleep(0.25)
         with self.lifecycle_lock, self.lock:
