@@ -58,11 +58,13 @@ The manual scripts below remain available for developers.
 ## Updating and rebuilding
 
 Use **Exit** in the GUI to close Gufo and the launcher, then double-click
-[update-windows.bat](../update-windows.bat). It pulls the current branch from its
-configured Git upstream using a fast-forward-only update, then runs
+[update-windows.bat](../update-windows.bat). It fetches `windows-main` from `origin`,
+switches existing `windows-port` installs to local `windows-main`, and updates
+that branch using a fast-forward-only merge. It then runs
 `tools\windows\build.ps1` to rebuild
 `build\release\gufo.exe` and stage its runtime DLLs and kernel libraries. For the
-documented clone, this updates `windows-port` from `origin/windows-port` on GitHub.
+documented clone, future updates track `origin/windows-main` on GitHub.
+The old local `windows-port` branch is retained.
 It checks the rebuilt executable with `--version` before reporting success.
 Open [launch-gui.bat](../launch-gui.bat) afterward to start the app.
 
@@ -77,8 +79,10 @@ Optional overrides work from a terminal:
 
 Local changes and untracked files must be committed, stashed or moved before
 updating; ignored build files and local settings can stay in place. A detached
-HEAD, missing tracking branch, Git failure or diverged history stops the update
-before rebuilding. The script does not switch branches or reset local commits.
+HEAD, a branch other than `windows-port` or `windows-main`, Git failure or
+diverged `windows-main` history stops the update before rebuilding. Unpublished
+`windows-port` commits also block the switch. The script does not reset local
+commits. The two remote branches do not need shared history for this transition.
 If compilation fails after a successful pull, the updated source stays in place;
 fix the reported issue and rerun. The batch window stays open on errors.
 Existing GUI settings and executable selections are preserved; select this

@@ -73,10 +73,12 @@ Copy-Item -LiteralPath $env:UPDATE_ENGINE_STUB -Destination (Join-Path $build 'g
         self.git("init", "--bare", "--initial-branch=windows-port", str(self.remote))
         self.git("remote", "add", "origin", str(self.remote))
         self.git("push", "-u", "origin", "windows-port")
+        self.git("push", "origin", "HEAD:windows-main")
         self.initial = self.git("rev-parse", "HEAD")
         self.writer = self.root / "writer"
         self.git("clone", str(self.remote), str(self.writer))
         self.configure(self.writer)
+        self.git("checkout", "windows-main", cwd=self.writer)
         self.rocm = self.root / "saved rock"
         self.vcpkg = self.root / "saved vcpkg"
         self.vcpkg.mkdir()
@@ -134,6 +136,10 @@ Copy-Item -LiteralPath $env:UPDATE_ENGINE_STUB -Destination (Join-Path $build 'g
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn("Update complete:", result.stdout)
             self.assertEqual(self.git("rev-parse", "HEAD"), expected)
+            self.assertEqual(self.git("branch", "--show-current"), "windows-main")
+            self.assertEqual(self.git("rev-parse", "--abbrev-ref", "@{upstream}"),
+                             "origin/windows-main")
+            self.assertEqual(self.git("rev-parse", "windows-port"), self.initial)
             self.assertEqual(settings.read_text(), '{"custom":"preserved"}')
             args = json.loads(self.build_arguments.read_text(encoding="utf-8-sig"))
             self.assertEqual(args, {"Preset": "release", "Target": "gufo", "Jobs": "3",
@@ -152,7 +158,7 @@ Copy-Item -LiteralPath $env:UPDATE_ENGINE_STUB -Destination (Join-Path $build 'g
                 if relative == "source.txt":
                     self.git("restore", "source.txt")
 
-    def test_divergence_cannot_rebase_even_when_configured(self):
+    def test_unpublished_windows_port_commits_block_switch(self):
         self.advance_remote()
         (self.checkout / "local.txt").write_text("local commit\n")
         self.git("add", "local.txt")
@@ -160,12 +166,72 @@ Copy-Item -LiteralPath $env:UPDATE_ENGINE_STUB -Destination (Join-Path $build 'g
         before = self.git("rev-parse", "HEAD")
         self.git("config", "pull.rebase", "true")
         self.git("config", "rebase.autoStash", "true")
+        self.assert_stopped(self.run_update(), "unpublished commits")
+        self.assertEqual(self.git("rev-parse", "HEAD"), before)
+        self.assertEqual(self.git("branch", "--show-current"), "windows-port")
+
+    def test_switch_handles_divergent_remote_branch_histories(self):
+        self.git("checkout", "windows-port", cwd=self.writer)
+        (self.writer / "source.txt").write_text("old branch only\n")
+        self.git("add", "source.txt", cwd=self.writer)
+        self.git("commit", "-m", "published old branch update", cwd=self.writer)
+        self.git("push", cwd=self.writer)
+        old_tip = self.git("rev-parse", "HEAD", cwd=self.writer)
+        self.git("fetch", "origin", "windows-port")
+        self.git("merge", "--ff-only", "origin/windows-port")
+        self.git("checkout", "windows-main", cwd=self.writer)
+        expected = self.advance_remote()
+        result = self.run_update()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.git("rev-parse", "HEAD"), expected)
+        self.assertEqual(self.git("rev-parse", "windows-port"), old_tip)
+        self.assertEqual((self.checkout / "source.txt").read_text(), "updated\n")
+
+    def test_existing_windows_main_fast_forwards(self):
+        self.git("branch", "windows-main")
+        expected = self.advance_remote()
+        result = self.run_update()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.git("rev-parse", "HEAD"), expected)
+        self.assertEqual(self.git("branch", "--show-current"), "windows-main")
+
+    def test_existing_windows_main_local_commits_block_switch(self):
+        self.git("checkout", "-b", "windows-main")
+        (self.checkout / "local.txt").write_text("local work\n")
+        self.git("add", "local.txt")
+        self.git("commit", "-m", "local main work")
+        local_tip = self.git("rev-parse", "HEAD")
+        self.git("checkout", "windows-port")
+        self.advance_remote()
+        self.assert_stopped(self.run_update(), "cannot fast-forward")
+        self.assertEqual(self.git("branch", "--show-current"), "windows-port")
+        self.assertEqual(self.git("rev-parse", "windows-main"), local_tip)
+
+    def test_windows_main_divergence_cannot_rebase(self):
+        self.git("checkout", "-b", "windows-main")
+        (self.checkout / "local.txt").write_text("local work\n")
+        self.git("add", "local.txt")
+        self.git("commit", "-m", "local main work")
+        before = self.git("rev-parse", "HEAD")
+        self.advance_remote()
+        self.git("config", "pull.rebase", "true")
+        self.git("config", "merge.autoStash", "true")
         self.assert_stopped(self.run_update(), "Git failed")
         self.assertEqual(self.git("rev-parse", "HEAD"), before)
 
-    def test_missing_tracking_and_detached_head_stop(self):
+    def test_unrelated_branch_is_left_untouched(self):
+        self.git("checkout", "-b", "my-work")
+        self.assert_stopped(self.run_update(), "branch 'my-work' is left untouched")
+        self.assertEqual(self.git("branch", "--show-current"), "my-work")
+
+    def test_missing_tracking_still_updates_from_windows_main(self):
+        expected = self.advance_remote()
         self.git("branch", "--unset-upstream")
-        self.assert_stopped(self.run_update(), "no configured upstream")
+        result = self.run_update()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.git("rev-parse", "HEAD"), expected)
+
+    def test_detached_head_stops(self):
         self.git("checkout", "--detach")
         self.assert_stopped(self.run_update(), "detached HEAD")
         self.assertEqual(self.git("rev-parse", "HEAD"), self.initial)

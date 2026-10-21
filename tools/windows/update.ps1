@@ -1,4 +1,4 @@
-# Update the current branch from its configured upstream and rebuild Gufo.
+# Switch existing Windows installs to windows-main, update, and rebuild Gufo.
 [CmdletBinding()]
 param(
   [string]$Rocm = "",
@@ -27,12 +27,37 @@ function Invoke-WindowsUpdate {
   if ($changes) { throw "This checkout has local changes or untracked files. Commit, stash or move them before updating." }
   $branch = & $tools.Git -C $root symbolic-ref --quiet --short HEAD
   if ($LASTEXITCODE -ne 0) { throw "Check out a branch before updating; detached HEAD cannot be updated automatically." }
-  $upstream = Invoke-UpdateGit @("for-each-ref", "--format=%(upstream:short)", "refs/heads/$branch")
-  if (-not $upstream) { throw "Branch '$branch' has no configured upstream. Set its Git tracking branch before updating." }
-
-  Write-Host "Updating $branch from $upstream..." -ForegroundColor Cyan
-  # Override pull settings that could rebase or automatically stash local work.
-  Invoke-UpdateGit @("pull", "--ff-only", "--no-rebase", "--no-autostash")
+  if ($branch -notin @("windows-port", "windows-main")) {
+    throw "Check out windows-port or windows-main before updating; branch '$branch' is left untouched."
+  }
+  Write-Host "Fetching origin/windows-main..." -ForegroundColor Cyan
+  $fetch = @("fetch", "--no-tags", "origin", "+refs/heads/windows-main:refs/remotes/origin/windows-main")
+  if ($branch -eq "windows-port") {
+    $fetch += "+refs/heads/windows-port:refs/remotes/origin/windows-port"
+  }
+  Invoke-UpdateGit $fetch
+  if ($branch -eq "windows-port") {
+    & $tools.Git -C $root merge-base --is-ancestor HEAD refs/remotes/origin/windows-port
+    if ($LASTEXITCODE -ne 0) {
+      throw "windows-port has unpublished commits or differs from origin/windows-port. Preserve or publish your work before switching."
+    }
+    & $tools.Git -C $root show-ref --verify --quiet refs/heads/windows-main
+    $branchStatus = $LASTEXITCODE
+    if ($branchStatus -eq 0) {
+      & $tools.Git -C $root merge-base --is-ancestor refs/heads/windows-main refs/remotes/origin/windows-main
+      if ($LASTEXITCODE -ne 0) {
+        throw "Local windows-main cannot fast-forward to origin/windows-main. Resolve its local history before updating."
+      }
+      Invoke-UpdateGit @("switch", "windows-main")
+    } elseif ($branchStatus -eq 1) {
+      Invoke-UpdateGit @("switch", "--no-track", "-c", "windows-main", "origin/windows-main")
+    } else {
+      throw "Git could not check the local windows-main branch (exit $branchStatus)."
+    }
+  }
+  Write-Host "Updating windows-main from origin/windows-main..." -ForegroundColor Cyan
+  Invoke-UpdateGit @("merge", "--ff-only", "--no-autostash", "origin/windows-main")
+  Invoke-UpdateGit @("branch", "--set-upstream-to=origin/windows-main", "windows-main")
   Assert-EngineStopped
   $env:PATH = "$(Split-Path $tools.Git);$(Split-Path $tools.CMake);$(Split-Path $tools.Ninja);$env:PATH"
   $shell = Join-Path $PSHOME "powershell.exe"

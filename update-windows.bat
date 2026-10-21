@@ -1,4 +1,5 @@
 @echo off
+rem Switch to windows-main, update from origin, and rebuild Gufo.
 setlocal
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\windows\update.ps1" %*
 set "exit_code=%errorlevel%"
