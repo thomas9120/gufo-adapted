@@ -86,7 +86,8 @@ class SyncToolsTest(unittest.TestCase):
         side = self.repo.parent
         return self.run_tool("sync-inventory.ps1", "-OfficialHead", "main", "-Offline",
                              "-Regressions", str(side / "regressions.json"),
-                             "-Contracts", str(self.repo / "docs/compat.md"), *args)
+                             "-Contracts", str(self.repo / "docs/compat.md"),
+                             "-SharedEdits", str(side / "allow.json"), *args)
 
     def test_guard_accepts_listed_and_fork_owned_files(self):
         result = self.guard(official=self.base)
@@ -178,6 +179,49 @@ class SyncToolsTest(unittest.TestCase):
         result = self.inventory("-WindowsBase", "fork", "-Candidate", "HEAD")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn(f"revert `{revert[:8]}` is an ancestor", result.stdout)
+
+    def test_inventory_suggests_batches(self):
+        self.write_json("regressions.json", {"regressions": []})
+        self.write_json("batching.json", {
+            "limits": {"convergence": 1, "timing": 4}, "releaseCuts": True,
+            "classes": {
+                "convergence": {"paths": ["src/core/platform/*"], "checks": "Converge."},
+                "timing": {"paths": ["src/models/qwen/*"], "checks": "Time it."},
+                "shared": {"checks": "Review shared."},
+                "contained": {"checks": "CPU gate."},
+                "inert": {"paths": ["*.md", "version.txt"], "checks": "Docs only."}}})
+        self.git("switch", "-q", "main")
+        self.write("src/core/platform/a.cpp", "int A() { return 0; }\n")
+        self.commit("feat(platform): a leaf (#3)")
+        self.write("src/models/qwen/b.cpp", "int B() { return 0; }\n")
+        self.write("src/shared.cpp", "int Shared() { return 3; }\n")
+        self.commit("perf(qwen): faster b (#4)")
+        self.write("version.txt", "0.2.0\n")
+        release = self.commit("chore(main): release 0.2.0")
+        self.git("tag", "v0.2.0")
+        self.write("README.md", "Note.\n")
+        self.commit("docs: note (#5)")
+        self.write("version.txt", "0.2.1\n")
+        self.commit("chore(main): release 0.2.1")  # no risk yet, so no cut
+        self.write("src/core/platform/c.cpp", "int C() { return 0; }\n")
+        second = self.commit("feat(platform): c leaf (#6)")
+        self.write("src/core/platform/d.cpp", "int D() { return 0; }\n")
+        last = self.commit("feat(platform): d leaf (#7)")
+        self.git("switch", "-q", "fork")
+
+        result = self.inventory("-WindowsBase", "fork",
+                                "-Batching", str(self.repo.parent / "batching.json"))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        out = result.stdout
+        self.assertIn(f"### Batch 1: through `{release[:8]}` (v0.2.0)", out)
+        self.assertIn("ends at release v0.2.0.", out)
+        self.assertIn("| perf: fast thing (#2) | contained |", out)
+        self.assertIn("| perf(qwen): faster b (#4) | timing, shared (`src/shared.cpp`) |", out)
+        self.assertIn("- Timing suspects: #4.", out)
+        self.assertIn(f"### Batch 2: through `{second[:8]}`", out)
+        self.assertIn(f"ends before `{last[:8]}`, which would exceed the convergence limit.", out)
+        self.assertIn("| docs: note (#5) | inert |", out)
+        self.assertIn(f"| 3 | `{last}` | 1 | convergence | `TBD` |", out)
 
 
 if __name__ == "__main__":

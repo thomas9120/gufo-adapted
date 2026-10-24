@@ -92,6 +92,11 @@ is the server orchestration and the per-phase comparison.
   `executor.cpp` verification workspace), so a landed fix is noticed without
   rediscovery. Do not reapply without citing the sync log entry and passing
   the cold-start control. One tool, not a separate watcher script.
+- [x] Batch planning in the same inventory: classify each incoming commit
+  (convergence/timing/contained/inert, plus a shared-edit flag) with
+  `tools/windows/sync-batching.json` and suggest cut points at release tags
+  or class limits, with each batch's required checks and timing suspects
+  ([batching](WINDOWS-UPSTREAM-SYNC.md#batching)).
 - [x] `tools/windows/diff-guard.ps1`: diff `official/main..HEAD`, fail if a
   shared `src/`/`tests/` file outside an allowlist changed or a `// WINDOWS:`
   marker is missing. Keeps the "small difference" contract enforced, not

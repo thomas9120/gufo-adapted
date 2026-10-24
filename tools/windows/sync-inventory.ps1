@@ -1,10 +1,11 @@
 # Inventory an official/main sync and gate it on known Windows regressions.
 #
 # Emits Markdown: incoming PRs (resolved with gh), the known-regression gate,
-# upstream changes to reverted regions, files changed on both sides, diff
-# stats in both directions and a sync-log entry skeleton. Run before merging
-# with -WindowsBase/-OfficialHead, then again with -Candidate after merging
-# and reverting. Exit code 1 means a known regression is not held back.
+# upstream changes to reverted regions, suggested batches with their checks,
+# files changed on both sides, diff stats in both directions and a sync-log
+# entry skeleton. Run before merging with -WindowsBase/-OfficialHead, then
+# again with -Candidate after merging and reverting. Exit code 1 means a
+# known regression is not held back.
 param(
   [string]$OfficialHead = "official/main",
   [string]$WindowsBase = "HEAD",
@@ -12,6 +13,8 @@ param(
   [string]$Repository = "gufo-org/gufo",
   [string]$Regressions = "",
   [string]$Contracts = "",
+  [string]$Batching = "",
+  [string]$SharedEdits = "",
   [string]$OutFile = "",
   [switch]$Offline
 )
@@ -20,6 +23,8 @@ $ErrorActionPreference = "Stop"
 $root = (Resolve-Path "$PSScriptRoot/../..").Path
 if (-not $Regressions) { $Regressions = Join-Path $PSScriptRoot "known-regressions.json" }
 if (-not $Contracts) { $Contracts = Join-Path $root "docs/WINDOWS-COMPATIBILITY.md" }
+if (-not $Batching) { $Batching = Join-Path $PSScriptRoot "sync-batching.json" }
+if (-not $SharedEdits) { $SharedEdits = Join-Path $PSScriptRoot "shared-edits.json" }
 
 $official = Resolve-Commit $OfficialHead
 $windows = Resolve-Commit $WindowsBase
@@ -57,6 +62,7 @@ if (Test-Ancestor $official $windows) {
 # Known-regression gate.
 $out.Add("")
 $out.Add("## Known regressions")
+$regressionPaths = @{}
 foreach ($regression in $known) {
   $out.Add("")
   $out.Add("### #$($regression.pr): $($regression.title)")
@@ -93,6 +99,8 @@ foreach ($regression in $known) {
   $watchSha = if ($regression.revertSha -and (Test-CommitExists $regression.revertSha)) { $regression.revertSha } else { $regression.mergeSha }
   $watch = @{}
   if (Test-CommitExists $watchSha) { foreach ($path in Get-CommitPaths $watchSha) { $watch[$path] = $true } }
+  # Only reverted source regions make a commit timing-sensitive for batching.
+  foreach ($path in $watch.Keys) { if ($path -like "src/*") { $regressionPaths[$path] = $true } }
   $mentions = @(Invoke-Git log --format=%H --fixed-strings "--grep=#$($regression.pr)" "$windows..$official")
   $touched = 0
   foreach ($commit in $incoming) {
@@ -116,6 +124,89 @@ foreach ($regression in $known) {
     }
   }
   $out.Add("- Reintroduction requires: $(@($regression.reintroductionChecks) -join ' ')")
+}
+
+# Batch plan. Merges must stop at an official commit to keep ancestry, so a
+# batch is a contiguous run of incoming commits; only the cut points vary.
+$rules = Read-JsonFile $Batching
+$shared = @{}
+foreach ($property in (Read-JsonFile $SharedEdits).files.PSObject.Properties) { $shared[$property.Name] = $true }
+$matchAny = { param($path, $patterns) foreach ($pattern in @($patterns)) { if ($path -like $pattern) { return $true } }; return $false }
+$order = @("convergence", "timing", "contained", "inert", "shared")
+foreach ($commit in $incoming) {
+  $classes = @()
+  # Shared documentation and CI edits conflict, but need no Windows review.
+  $sharedPaths = @($commit.Paths | Where-Object { $shared.ContainsKey($_) -and -not (& $matchAny $_ $rules.classes.inert.paths) })
+  if (@($commit.Paths | Where-Object { & $matchAny $_ $rules.classes.convergence.paths })) { $classes += "convergence" }
+  if ($knownByPr.ContainsKey($commit.Pr) -or
+      @($commit.Paths | Where-Object { $regressionPaths.ContainsKey($_) -or (& $matchAny $_ $rules.classes.timing.paths) })) {
+    $classes += "timing"
+  }
+  if (-not $classes) {
+    $outside = @($commit.Paths | Where-Object { -not (& $matchAny $_ $rules.classes.inert.paths) })
+    if ($outside) { $classes += "contained" } else { $classes += "inert" }
+  }
+  if ($sharedPaths) { $classes += "shared" }
+  $tags = @(Invoke-Git tag --points-at $commit.Sha | Where-Object { $_ -match '^v\d' })
+  $release = if ($tags) { $tags[0] } elseif ($commit.Subject -match '^chore\(main\): release (\S+)') { "v$($Matches[1])" } else { "" }
+  $commit | Add-Member Classes $classes
+  $commit | Add-Member SharedPaths $sharedPaths
+  $commit | Add-Member Release $release
+}
+
+$limits = @{ convergence = [int]$rules.limits.convergence; timing = [int]$rules.limits.timing }
+$batches = @()
+$current = @()
+$counts = @{ convergence = 0; timing = 0 }
+foreach ($commit in $incoming) {
+  $over = @("convergence", "timing" | Where-Object { ($commit.Classes -contains $_) -and $counts[$_] -ge $limits[$_] })
+  if ($current -and $over) {
+    $batches += New-Object PSObject -Property @{ Commits = $current; Reason = "before ``$(& $short $commit.Sha)``, which would exceed the $($over -join ' and ') limit" }
+    $current = @()
+    $counts = @{ convergence = 0; timing = 0 }
+  }
+  $current += $commit
+  foreach ($class in "convergence", "timing") { if ($commit.Classes -contains $class) { $counts[$class]++ } }
+  if ($commit.Release -and $rules.releaseCuts -and ($counts.convergence + $counts.timing) -gt 0) {
+    $batches += New-Object PSObject -Property @{ Commits = $current; Reason = "at release $($commit.Release)" }
+    $current = @()
+    $counts = @{ convergence = 0; timing = 0 }
+  }
+}
+if ($current) { $batches += New-Object PSObject -Property @{ Commits = $current; Reason = "at the official head" } }
+# Classes present in a batch, in reporting order.
+$batchClasses = { param($batch) @($order | Where-Object { $class = $_; @($batch.Commits | Where-Object { $_.Classes -contains $class }).Count }) }
+
+$out.Add("")
+$out.Add("## Suggested batches")
+$out.Add("")
+$out.Add("Limits per batch: $($limits.convergence) convergence and $($limits.timing) timing commits (``$(Split-Path -Leaf $Batching)``). " +
+  "Merge each batch end as its own checkpoint on the candidate and run its checks before merging the next.")
+$number = 0
+foreach ($batch in $batches) {
+  $number++
+  $end = $batch.Commits[-1]
+  $label = if ($end.Release) { " ($($end.Release))" } else { "" }
+  $out.Add("")
+  $out.Add("### Batch ${number}: through ``$(& $short $end.Sha)``$label")
+  $out.Add("")
+  $out.Add("Merge target ``$($end.Sha)``; ends $($batch.Reason).")
+  $out.Add("")
+  $out.Add("| Commit | Change | Classes |")
+  $out.Add("| --- | --- | --- |")
+  foreach ($commit in $batch.Commits) {
+    $detail = $commit.Classes -join ", "
+    if ($commit.SharedPaths) { $detail += " (" + (($commit.SharedPaths | ForEach-Object { "``$_``" }) -join ", ") + ")" }
+    $out.Add("| ``$(& $short $commit.Sha)`` | $($commit.Subject) | $detail |")
+  }
+  $out.Add("")
+  foreach ($class in (& $batchClasses $batch)) { $out.Add("- **$class**: $($rules.classes.$class.checks)") }
+  $suspects = @($batch.Commits | Where-Object { $_.Classes -contains "timing" } | ForEach-Object { if ($_.Pr) { "#$($_.Pr)" } else { "``$(& $short $_.Sha)``" } })
+  if ($suspects) { $out.Add("- Timing suspects: $($suspects -join ', ').") }
+}
+if (-not $batches.Count) {
+  $out.Add("")
+  $out.Add("No incoming commits.")
 }
 
 # Incoming PR table, verified against GitHub unless offline.
@@ -193,6 +284,18 @@ $out.Add("- Previous official ancestor: ``$(& $short $ancestor)``.")
 $out.Add("- Imported official head: ``$official``.")
 $out.Add("- Integration: ordinary merge of the recorded official head, merge commit ``TBD``.")
 $out.Add("")
+if ($batches.Count -gt 1) {
+  $out.Add("| Checkpoint | Official SHA | Commits | Classes | Merge commit |")
+  $out.Add("| --- | --- | ---: | --- | --- |")
+  $number = 0
+  foreach ($batch in $batches) {
+    $number++
+    $end = $batch.Commits[-1]
+    $label = if ($end.Release) { " ($($end.Release))" } else { "" }
+    $out.Add("| $number | ``$($end.Sha)``$label | $(@($batch.Commits).Count) | $((& $batchClasses $batch) -join ', ') | ``TBD`` |")
+  }
+  $out.Add("")
+}
 $out.Add("| PR | Upstream change | Merge SHA |")
 $out.Add("| --- | --- | --- |")
 foreach ($row in $rows) { $out.Add($row) }

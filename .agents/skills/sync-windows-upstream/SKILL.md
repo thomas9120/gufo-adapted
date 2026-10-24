@@ -52,14 +52,21 @@ examples below use Git. Check `gh auth status` before GitHub operations.
    It resolves every incoming PR, flags known Windows regressions
    ([`known-regressions.json`](../../../tools/windows/known-regressions.json))
    arriving with the sync or touched by upstream, lists files changed on both
-   sides, and emits the sync-log entry skeleton. Exit code 1 means a known
-   regression must be reverted on the candidate.
+   sides, suggests batches and emits the sync-log entry skeleton. Exit code 1
+   means a known regression must be reverted on the candidate.
    Use CodeGraph first for code exploration when `.codegraph/` exists, per
    repository instructions. Include new callers of OS-sensitive operations,
    not just files with merge conflicts.
-4. Create a unique `sync/official-YYYY-MM-DD` candidate from the chosen Windows
-   base and merge the recorded official SHA. Do not routinely rebase the shared
-   branch or cherry-pick only selected official fixes.
+4. Choose the batches following
+   [batching](../../../docs/WINDOWS-UPSTREAM-SYNC.md#batching): start from the
+   inventory's **Suggested batches** (cut at release tags, at most two
+   convergence and four timing commits per batch) and record any cut you move
+   and why. Release notes are not an inventory; use the commit range.
+5. Create a unique `sync/official-YYYY-MM-DD` candidate from the chosen Windows
+   base and merge each batch's recorded official SHA in order, one merge
+   commit per checkpoint. Run that batch's required checks before merging the
+   next. Do not routinely rebase the shared branch or cherry-pick only
+   selected official fixes.
 
 Example from a clean, confirmed `windows-main` base; run commands sequentially
 and inspect exit status before proceeding, especially in Windows PowerShell
@@ -73,7 +80,9 @@ $windowsBase = git rev-parse HEAD
 $officialHead = git rev-parse official/main
 $syncBranch = 'sync/official-' + (Get-Date -Format 'yyyy-MM-dd-HHmmss')
 git switch -c $syncBranch
-git merge --no-ff $officialHead -m "chore(sync): merge official/main"
+# For each batch, in order, using its merge target from the inventory:
+$batchEnd = 'BATCH_END_SHA'
+git merge --no-ff $batchEnd -m "chore(sync): merge official through $($batchEnd.Substring(0, 8))"
 ```
 
 Resolve conflicts at the OS boundary, retaining the current upstream algorithm
@@ -89,6 +98,10 @@ Windows disk checkpoint stores merely to make a merge build.
 Check off every [compatibility contract](../../../docs/WINDOWS-COMPATIBILITY.md)
 (the inventory's skeleton lists them). Record each as unchanged/reviewed,
 validated, or pending with its reason; a clean merge is not validation.
+Each batch lists the checks its classes require. A batch without timing
+commits needs no timing comparison. When a timing gate fails, revert-test
+the batch's timing suspects first; when the CPU gate fails, bisect the
+batch's first-parent commits.
 
 - Build and run the bounded Windows CPU gate using the documented toolchain:
   `./tools/windows/build.ps1 -Preset windows-cpu -Vcpkg PATH`, followed by

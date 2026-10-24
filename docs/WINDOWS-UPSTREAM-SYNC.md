@@ -148,6 +148,49 @@ archive under the same directory name; on the reference host that is
 `C:\P2027\gufo-evidence\`. Evidence references in this log name those
 archived directories. Binaries, model files and caches are not archived.
 
+## Batching
+
+Import official history in batches rather than one PR at a time. A batch must
+end at an official commit so that the merge keeps official ancestry. It is
+therefore a contiguous run of incoming commits; selecting non-adjacent PRs
+would mean cherry-picking. Only the cut points are chosen.
+
+- **Cut at release tags by default.** A `vX.Y.Z` tag passed upstream's
+  complete Devlab functional suite, and merging its release commit keeps
+  `version.txt` and `CHANGELOG.md` in step with official. Take the inventory
+  from the commit range, not the release notes: notes omit `build`, `ci`,
+  `test` and `chore` PRs and have missed late-merged `feat`/`perf` PRs
+  (v0.22.0 omits #705; v0.23.0 omits #752).
+- **Classify every incoming commit by what it requires**, using the path rules
+  in [`sync-batching.json`](../tools/windows/sync-batching.json):
+
+  | Class | Meaning | Required work |
+  | --- | --- | --- |
+  | convergence | Windows portability areas: `compat/`, `src/core/platform/`, `src/core/hip/`, `src/cache/`, Windows workflows | Choose the fork or upstream implementation for each overlap, review the affected contracts, run the Windows CPU gate and HIP build |
+  | timing | Hot paths of models with Windows timing evidence, shared decoding code, and source reverted for a known regression | Matched Windows timing controls and the first-request control |
+  | contained | Other source and tests | Windows CPU gate and affected functional suites |
+  | inert | Documentation, Nix, CI, functional suites, release commits | Documentation, formatting and build checks |
+  | shared (flag) | Touches a source or test file listed in `shared-edits.json` | Review the fork's edit and its contract, even after a clean merge |
+
+- **End a batch early** when the next commit would exceed two convergence or
+  four timing commits. Keep related convergence work, for example one
+  platform leaf and its adoption, in one batch rather than mixing several
+  unrelated fork-or-upstream decisions into one merge. **Continue past a
+  release** whose batch has no convergence or timing commit.
+- **Merge each batch end as its own checkpoint** on a single candidate branch,
+  then run that batch's checks before merging the next. One sync PR and one
+  log entry cover all checkpoints; record each checkpoint's official SHA and
+  merge commit in the entry's checkpoint table.
+- **Narrow failures by class.** When a batch fails a timing gate, revert-test
+  only its timing commits, listed as timing suspects; when the CPU gate fails,
+  bisect the batch's first-parent commits. Then apply the acceptance policy to
+  the responsible PR.
+
+The inventory applies these rules under **Suggested batches** and lists each
+batch's merge target, per-commit classes, required checks and timing suspects.
+The suggestion is advisory: move a cut point when review shows a dependency
+or a lower-risk boundary, and record the reason in the sync entry.
+
 ## Repeatable procedure
 
 1. Follow the [sync skill](../.agents/skills/sync-windows-upstream/SKILL.md).
@@ -158,17 +201,20 @@ archived directories. Binaries, model files and caches are not archived.
    -OfficialHead OFFICIAL_HEAD -OutFile build/sync-YYYY-MM-DD/inventory.md`.
    It lists **all** incoming commits, resolves PR titles and merge SHAs with
    `gh`, lists release commits separately, reports files changed on both sides
-   and upstream work on reverted regions, and emits an entry skeleton. Exit
-   code 1 means the sync imports a known regression.
+   and upstream work on reverted regions, suggests [batches](#batching) and
+   emits an entry skeleton. Exit code 1 means the sync imports a known
+   regression.
 3. Apply the Windows acceptance policy and known-regression entries above.
-   Merge that exact upstream SHA on an isolated candidate descended from the
-   Windows base. An already isolated T3 task branch is a suitable candidate.
-   Preserve official ancestry through a merge commit. Review cleanly merged
-   Windows call sites as well as conflicts; retain both platforms' evidence.
-4. Review every [compatibility contract](WINDOWS-COMPATIBILITY.md).
-   Audit new callers and moved implementations. Run the bounded Windows CPU
-   gate, affected GPU/model checks, documentation/formatting checks and the
-   available Linux gate. Preserve individual timing results and failures.
+   Choose the batches. On an isolated candidate descended from the Windows
+   base, merge each batch's exact official SHA in order. An already isolated
+   T3 task branch is a suitable candidate. Preserve official ancestry through
+   a merge commit per checkpoint. Review cleanly merged Windows call sites as
+   well as conflicts; retain both platforms' evidence.
+4. Review every [compatibility contract](WINDOWS-COMPATIBILITY.md) at each
+   checkpoint. Audit new callers and moved implementations. Run each batch's
+   required checks before merging the next one, then the bounded Windows CPU
+   gate, documentation/formatting checks and the available Linux gate on the
+   final candidate. Preserve individual timing results and failures.
    Revert/defer confirmed Windows regressions and validate the resulting
    combination before accepting the sync. Rerun the inventory with
    `-Candidate HEAD` (it fails if reverted code is present), run
@@ -191,6 +237,8 @@ archived directories. Binaries, model files and caches are not archived.
    [merge policy](WINDOWS-COMPATIBILITY.md#repository-roles).
 
 For the next sync, copy the shape of the latest entry and replace its evidence.
+For a batched sync, keep the skeleton's checkpoint table and give each
+checkpoint its own merge review and validation subsections.
 Use **validated**, **reviewed/unchanged**, or **pending (reason)** per contract;
 do not count missing models, excluded disk persistence or noisy timings as passes.
 
